@@ -9,6 +9,8 @@ import {
   useDeleteSavedPost,
   useGetCurrentUser,
 } from "@/lib/react-query/queriesAndMutations";
+import ShareModal from "./ShareModal";
+import AuthPromptModal from "./AuthPromptModal";
 
 type PostStatsProps = {
   post: any; // Updated from Models.Document to any for Supabase compatibility
@@ -27,6 +29,9 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
 
   const [likes, setLikes] = useState<string[]>(likesList);
   const [isSaved, setIsSaved] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authAction, setAuthAction] = useState("");
 
   const { mutate: likePost } = useLikePost();
   const { mutate: deleteLike } = useDeleteLike();
@@ -61,6 +66,13 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
   ) => {
     e.stopPropagation();
 
+    // Check if user is authenticated
+    if (!userId) {
+      setAuthAction("like posts");
+      setShowAuthPrompt(true);
+      return;
+    }
+
     const postId = post.id || post.$id;
     let likesArray = [...likes];
 
@@ -82,6 +94,13 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
   ) => {
     e.stopPropagation();
 
+    // Check if user is authenticated
+    if (!userId) {
+      setAuthAction("save posts");
+      setShowAuthPrompt(true);
+      return;
+    }
+
     const postId = post.id || post.$id;
     
     if (isSaved) {
@@ -95,58 +114,107 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
     setIsSaved(true);
   };
 
+  const handleSharePost = (
+    e: React.MouseEvent<HTMLImageElement, MouseEvent>
+  ) => {
+    e.stopPropagation();
+
+    // Check if Web Share API is supported (mobile)
+    if (navigator.share) {
+      const postUrl = `${window.location.origin}/posts/${post.id}`;
+      const shareText = `Check out this post by ${post.creator?.name}: ${post.caption}`;
+      
+      navigator.share({
+        title: `Post by ${post.creator?.name}`,
+        text: shareText,
+        url: postUrl,
+      }).catch((error) => console.log('Error sharing:', error));
+    } else {
+      // Show our custom modal for desktop
+      setShowShareModal(true);
+    }
+  };
+
   const containerStyles = pathname?.startsWith("/profile")
     ? "w-full"
     : "";
 
   return (
-    <div
-      className={`flex justify-between items-center z-20 ${containerStyles}`}>
-      <div className="flex gap-4 mr-5">
-        {/* Like Button */}
-        <div className="flex gap-2 items-center">
-          <img
-            src={`${
-              checkIsLiked(likes, userId)
-                ? "/assets/icons/liked.svg"
-                : "/assets/icons/like.svg"
-            }`}
-            alt="like"
-            width={20}
-            height={20}
-            onClick={(e) => handleLikePost(e)}
-            className="cursor-pointer"
-          />
-          <p className="small-medium lg:base-medium">{likes.length}</p>
+    <>
+      <div
+        className={`flex justify-between items-center z-20 ${containerStyles}`}>
+        <div className="flex gap-4 mr-5">
+          {/* Like Button */}
+          <div className="flex gap-2 items-center">
+            <img
+              src={`${
+                checkIsLiked(likes, userId)
+                  ? "/assets/icons/liked.svg"
+                  : "/assets/icons/like.svg"
+              }`}
+              alt="like"
+              width={20}
+              height={20}
+              onClick={(e) => handleLikePost(e)}
+              className="cursor-pointer"
+            />
+            <p className="small-medium lg:base-medium">{likes.length}</p>
+          </div>
+
+          {/* Comments Button */}
+          <div className="flex gap-2 items-center">
+            <img
+              src="/assets/icons/chat.svg"
+              alt="comment"
+              width={20}
+              height={20}
+              className="cursor-pointer"
+              onClick={onCommentClick}
+            />
+            <p className="small-medium lg:base-medium">
+              {post._count?.comments || 0}
+            </p>
+          </div>
+
+          {/* Share Button */}
+          <div className="flex gap-2 items-center">
+            <img
+              src="/assets/icons/share.svg"
+              alt="share"
+              width={20}
+              height={20}
+              className="cursor-pointer"
+              onClick={(e) => handleSharePost(e)}
+            />
+          </div>
         </div>
 
-        {/* Comments Button */}
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2">
           <img
-            src="/assets/icons/chat.svg"
-            alt="comment"
+            src={isSaved ? "/assets/icons/saved.svg" : "/assets/icons/save.svg"}
+            alt="save"
             width={20}
             height={20}
             className="cursor-pointer"
-            onClick={onCommentClick}
+            onClick={(e) => handleSavePost(e)}
           />
-          <p className="small-medium lg:base-medium">
-            {post._count?.comments || 0}
-          </p>
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <img
-          src={isSaved ? "/assets/icons/saved.svg" : "/assets/icons/save.svg"}
-          alt="share"
-          width={20}
-          height={20}
-          className="cursor-pointer"
-          onClick={(e) => handleSavePost(e)}
-        />
-      </div>
-    </div>
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        post={post}
+      />
+
+      {/* Auth Prompt Modal */}
+      <AuthPromptModal
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        action={authAction}
+      />
+    </>
   );
 };
 

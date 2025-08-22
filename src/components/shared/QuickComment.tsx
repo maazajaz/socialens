@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { multiFormatDateString } from "@/lib/utils";
 import Link from "next/link";
+import AuthPromptModal from "./AuthPromptModal";
 
 type QuickCommentProps = {
   postId: string;
@@ -36,6 +37,8 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isUpdatingComment, setIsUpdatingComment] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authAction, setAuthAction] = useState("");
 
   // Fetch comments when component mounts
   useEffect(() => {
@@ -84,7 +87,11 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
   };
 
   const handleLikeComment = async (commentId: string) => {
-    if (!user) return;
+    if (!user) {
+      setAuthAction("like comments");
+      setShowAuthPrompt(true);
+      return;
+    }
     
     const isLiked = likedComments.has(commentId);
     
@@ -114,7 +121,13 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
   };
 
   const handleSubmitReply = async (parentId: string) => {
-    if (!replyContent.trim() || !user || isSubmittingReply) return;
+    if (!user) {
+      setAuthAction("reply to comments");
+      setShowAuthPrompt(true);
+      return;
+    }
+    
+    if (!replyContent.trim() || isSubmittingReply) return;
 
     setIsSubmittingReply(true);
     
@@ -193,7 +206,13 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!comment.trim() || !user || isSubmitting) return;
+    if (!user) {
+      setAuthAction("comment on posts");
+      setShowAuthPrompt(true);
+      return;
+    }
+    
+    if (!comment.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     
@@ -608,6 +627,13 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
           </>
         )}
       </div>
+
+      {/* Auth Prompt Modal */}
+      <AuthPromptModal
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        action={authAction}
+      />
     </div>
   );
 };
