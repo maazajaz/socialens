@@ -1,2 +1,0 @@
--- Backup of Supabase SQL migrations and policies
--- Add all your .sql files here for versioning
