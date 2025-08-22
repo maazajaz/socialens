@@ -55,6 +55,31 @@ export type INewUser = {
   username: string;
   password: string;
 };
+
+export type INewComment = {
+  content: string;
+  postId: string;
+  parentId?: string;
+};
+
+export type IComment = {
+  id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+  post_id: string;
+  parent_id: string | null;
+  is_edited: boolean;
+  user: IUser;
+  likes: Array<{ user_id: string }>;
+  replies?: IComment[];
+  _count?: {
+    likes: number;
+    replies: number;
+  };
+};
+
 export type DocumentList = {
   documents: {
     $id: string; // Cursor or identifier

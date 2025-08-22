@@ -13,6 +13,7 @@ import { Button } from "@/components/ui";
 import Loader from "@/components/shared/Loader";
 import PostStats from "@/components/shared/PostStats";
 import GridPostList from "@/components/shared/GridPostList";
+import Comments from "@/components/shared/Comments";
 
 const PostDetails = () => {
   const navigate = useNavigate();
@@ -140,6 +141,14 @@ const PostDetails = () => {
               <PostStats post={post} userId={user?.id || ""} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Comments Section */}
+      {postId && (
+        <div className="w-full max-w-5xl">
+          <hr className="border w-full border-dark-4/80 my-6" />
+          <Comments postId={postId} />
         </div>
       )}
 

@@ -8,10 +8,24 @@ export type Post = Database['public']['Tables']['posts']['Row'] & {
   creator: User
   likes: Array<{ user_id: string }>
   saves: Array<{ user_id: string }>
+  comments?: Comment[]
+  _count?: {
+    comments: number
+  }
 }
 export type Like = Database['public']['Tables']['likes']['Row']
 export type Save = Database['public']['Tables']['saves']['Row']
 export type Follow = Database['public']['Tables']['follows']['Row']
+export type Comment = Database['public']['Tables']['comments']['Row'] & {
+  user: User
+  likes: Array<{ user_id: string }>
+  replies?: Comment[]
+  _count?: {
+    likes: number
+    replies: number
+  }
+}
+export type CommentLike = Database['public']['Tables']['comment_likes']['Row']
 
 const supabase = createClient()
 
@@ -334,6 +348,27 @@ export async function getRecentPosts() {
       .order('created_at', { ascending: false })
 
     if (error) throw error
+    
+    // Add comment counts to posts
+    if (data) {
+      const postsWithCommentCounts = await Promise.all(
+        data.map(async (post) => {
+          const { count } = await supabase
+            .from('comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', post.id)
+          
+          return {
+            ...post,
+            _count: {
+              comments: count || 0
+            }
+          }
+        })
+      )
+      return postsWithCommentCounts
+    }
+    
     return data
   } catch (error) {
     console.error('Error getting recent posts:', error)
@@ -355,6 +390,22 @@ export async function getPostById(postId: string) {
       .single()
 
     if (error) throw error
+    
+    // Add comment count to post
+    if (data) {
+      const { count } = await supabase
+        .from('comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('post_id', data.id)
+      
+      return {
+        ...data,
+        _count: {
+          comments: count || 0
+        }
+      }
+    }
+    
     return data
   } catch (error) {
     console.error('Error getting post:', error)
@@ -914,5 +965,218 @@ export async function getFollowing(userId: string) {
   } catch (error) {
     console.error('Error getting following:', error)
     return []
+  }
+}
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+export async function createComment(comment: {
+  content: string
+  postId: string
+  userId: string
+  parentId?: string
+}): Promise<Comment | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .insert([
+        {
+          content: comment.content,
+          post_id: comment.postId,
+          user_id: comment.userId,
+          parent_id: comment.parentId || null,
+        },
+      ])
+      .select(`
+        *,
+        user:users (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:comment_likes (
+          user_id
+        )
+      `)
+      .single()
+
+    if (error) throw error
+    return data as Comment
+  } catch (error) {
+    console.error('Error creating comment:', error)
+    return null
+  }
+}
+
+export async function getPostComments(postId: string): Promise<Comment[]> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        user:users (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:comment_likes (
+          user_id
+        )
+      `)
+      .eq('post_id', postId)
+      .is('parent_id', null)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+
+    const commentsWithReplies = await Promise.all(
+      (data || []).map(async (comment) => {
+        const replies = await getCommentReplies(comment.id)
+        return {
+          ...comment,
+          replies,
+          _count: {
+            likes: comment.likes?.length || 0,
+            replies: replies.length,
+          },
+        } as Comment
+      })
+    )
+
+    return commentsWithReplies
+  } catch (error) {
+    console.error('Error getting post comments:', error)
+    return []
+  }
+}
+
+export async function getCommentReplies(commentId: string): Promise<Comment[]> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        user:users (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:comment_likes (
+          user_id
+        )
+      `)
+      .eq('parent_id', commentId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+
+    return (data || []).map(comment => ({
+      ...comment,
+      _count: {
+        likes: comment.likes?.length || 0,
+        replies: 0,
+      },
+    })) as Comment[]
+  } catch (error) {
+    console.error('Error getting comment replies:', error)
+    return []
+  }
+}
+
+export async function updateComment(commentId: string, content: string): Promise<Comment | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .update({ 
+        content,
+        is_edited: true,
+      })
+      .eq('id', commentId)
+      .select(`
+        *,
+        user:users (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:comment_likes (
+          user_id
+        )
+      `)
+      .single()
+
+    if (error) throw error
+    return data as Comment
+  } catch (error) {
+    console.error('Error updating comment:', error)
+    return null
+  }
+}
+
+export async function deleteComment(commentId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error deleting comment:', error)
+    return false
+  }
+}
+
+export async function likeComment(commentId: string, userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('comment_likes')
+      .insert([{ comment_id: commentId, user_id: userId }])
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error liking comment:', error)
+    return false
+  }
+}
+
+export async function unlikeComment(commentId: string, userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('comment_likes')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error unliking comment:', error)
+    return false
+  }
+}
+
+export async function getCommentLikeStatus(commentId: string, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', userId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return !!data
+  } catch (error) {
+    console.error('Error checking comment like status:', error)
+    return false
   }
 }

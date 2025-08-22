@@ -119,6 +119,58 @@ export interface Database {
           following_id?: string
         }
       }
+      comments: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          content: string
+          user_id: string
+          post_id: string
+          parent_id: string | null
+          is_edited: boolean
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          content: string
+          user_id: string
+          post_id: string
+          parent_id?: string | null
+          is_edited?: boolean
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          content?: string
+          user_id?: string
+          post_id?: string
+          parent_id?: string | null
+          is_edited?: boolean
+        }
+      }
+      comment_likes: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          comment_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          comment_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          comment_id?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
