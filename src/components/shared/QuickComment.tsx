@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { multiFormatDateString } from "@/lib/utils";
-import Link from "next/link";
 import AuthPromptModal from "./AuthPromptModal";
+import Link from "next/link";
 
 type QuickCommentProps = {
   postId: string;
@@ -236,40 +236,33 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="text-center py-2">
-        <p className="text-light-4 text-sm">Sign in to comment</p>
-      </div>
-    );
-  }
-
   // Display logic: show first 5 comments, or all if showAllComments is true
   const displayedComments = showAllComments ? comments : comments.slice(0, 5);
   const hasMoreComments = comments.length > 5;
 
   return (
     <div className="space-y-4">
-      {/* Comment Form */}
-      <form onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
-        <img
-          src={user.image_url || "/assets/icons/profile-placeholder.svg"}
-          alt="Your profile"
-          width={32}
-          height={32}
-          className="rounded-full"
-        />
-        
-        <div className="flex-1 flex items-center gap-2">
-          <Input
-            type="text"
-            placeholder="Add a comment..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="flex-1 border rounded-full px-4 py-2 bg-dark-4 border-dark-4 text-light-1 placeholder:text-light-4 focus:border-primary-500"
-            maxLength={2200}
-            disabled={isSubmitting}
+      {/* Comment Form - Only show if user is authenticated */}
+      {user ? (
+        <form onSubmit={handleSubmit} className="flex items-center gap-3 p-3">
+          <img
+            src={user.image_url || "/assets/icons/profile-placeholder.svg"}
+            alt="Your profile"
+            width={32}
+            height={32}
+            className="rounded-full"
           />
+          
+          <div className="flex-1 flex items-center gap-2">
+            <Input
+              type="text"
+              placeholder="Add a comment..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="flex-1 border rounded-full px-4 py-2 bg-dark-4 border-dark-4 text-light-1 placeholder:text-light-4 focus:border-primary-500"
+              maxLength={2200}
+              disabled={isSubmitting}
+            />
           
           <Button
             type="submit"
@@ -282,8 +275,32 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
           </Button>
         </div>
       </form>
+      ) : (
+        /* Auth prompt for unauthenticated users */
+        <div className="flex items-center gap-3 p-3 bg-dark-4 rounded-lg">
+          <img
+            src="/assets/icons/profile-placeholder.svg"
+            alt="Guest profile"
+            width={32}
+            height={32}
+            className="rounded-full opacity-50"
+          />
+          <div className="flex-1">
+            <Input
+              type="text"
+              placeholder="Sign in to add a comment..."
+              className="flex-1 border rounded-full px-4 py-2 bg-dark-3 border-dark-3 text-light-1 placeholder:text-light-3 cursor-pointer"
+              readOnly
+              onClick={() => {
+                setAuthAction("comment on posts");
+                setShowAuthPrompt(true);
+              }}
+            />
+          </div>
+        </div>
+      )}
 
-      {/* Comments Display */}
+      {/* Comments Display - Always visible */}
       <div className="px-3 space-y-3">
         {isLoadingComments ? (
           <div className="flex items-center justify-center py-4">
@@ -402,7 +419,14 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setReplyingTo(replyingTo === commentItem.id ? null : commentItem.id)}
+                        onClick={() => {
+                          if (!user) {
+                            setAuthAction("reply to comments");
+                            setShowAuthPrompt(true);
+                            return;
+                          }
+                          setReplyingTo(replyingTo === commentItem.id ? null : commentItem.id);
+                        }}
                         className="text-xs text-light-4 hover:text-primary-500 px-1 py-0 h-auto"
                       >
                         {replyingTo === commentItem.id ? 'Cancel' : 'Reply'}
