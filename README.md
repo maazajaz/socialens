@@ -109,6 +109,17 @@ src/
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
+## Official Website
+
+Visit the live application: **[https://socialens.in](https://socialens.in)**
+
+## Author
+
+**Maaz Ajaz**
+- Portfolio: [https://maazajaz.com](https://maazajaz.com)
+- GitHub: [@maazajaz](https://github.com/maazajaz)
+- Another exciting project: [Trimizy](https://github.com/maazajaz/trimizy)
+
 ## Acknowledgments
 
 - [Next.js](https://nextjs.org/) - The React framework used
