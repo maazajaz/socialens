@@ -6,13 +6,19 @@ type ShareModalProps = {
   isOpen: boolean;
   onClose: () => void;
   post: any;
+  isProfile?: boolean;
 };
 
-const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
+const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProps) => {
   const [copied, setCopied] = useState(false);
+  
 
-  const postUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${post.id}`;
-  const shareText = `Check out this post by ${post.creator?.name}: ${post.caption}`;
+  const postUrl = isProfile
+    ? post.url || `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${post.id}`
+    : `${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${post.id}`;
+  const shareText = isProfile
+    ? `Check out ${post.name}'s profile (@${post.username})!${post.bio ? ' ' + post.bio : ''}`
+    : `Check out this post by ${post.creator?.name}: ${post.caption}`;
 
   const shareOptions = [
     {
@@ -49,9 +55,22 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(postUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(postUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for iOS Safari and older browsers
+        const tempInput = document.createElement('input');
+        tempInput.value = postUrl;
+        document.body.appendChild(tempInput);
+        tempInput.focus();
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     } catch (error) {
       console.error('Failed to copy link:', error);
     }
@@ -97,7 +116,7 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
       <div className="bg-dark-2 rounded-lg p-6 w-full max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-light-1 text-lg font-semibold">Share Post</h3>
+          <h3 className="text-light-1 text-lg font-semibold">{isProfile ? 'Share Profile' : 'Share Post'}</h3>
           <button
             onClick={onClose}
             className="text-light-3 hover:text-light-1 text-xl"
@@ -106,17 +125,20 @@ const ShareModal = ({ isOpen, onClose, post }: ShareModalProps) => {
           </button>
         </div>
 
-        {/* Post Preview */}
+        {/* Preview */}
         <div className="mb-6 p-3 bg-dark-3 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <img
-              src={post.creator?.image_url || "/assets/icons/profile-placeholder.svg"}
-              alt="creator"
+              src={isProfile
+                ? post.image_url || "/assets/icons/profile-placeholder.svg"
+                : post.creator?.image_url || "/assets/icons/profile-placeholder.svg"
+              }
+              alt={isProfile ? "profile" : "creator"}
               className="w-8 h-8 rounded-full"
             />
-            <span className="text-light-2 text-sm font-medium">{post.creator?.name}</span>
+            <span className="text-light-2 text-sm font-medium">{isProfile ? post.name : post.creator?.name}</span>
           </div>
-          <p className="text-light-3 text-sm line-clamp-2">{post.caption}</p>
+          <p className="text-light-3 text-sm line-clamp-2">{isProfile ? post.bio : post.caption}</p>
         </div>
 
         {/* Share Options */}

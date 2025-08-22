@@ -1,14 +1,8 @@
-import {
-    Route,
-    Routes,
-    Link,
-    Outlet,
-    useParams,
-    useLocation,
-  } from "react-router-dom";
-  
-import { Button } from "@/components/ui";
-import { LikedPosts } from "@/_root/pages";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import { 
   useGetUserById, 
@@ -22,29 +16,33 @@ import {
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import LinkifiedText from "@/components/shared/LinkifiedText";
- 
-  
-  interface StabBlockProps {
-    value: string | number;
-    label: string;
-  }
-  
-  const StatBlock = ({ value, label }: StabBlockProps) => (
-    <div className="flex-center gap-2">
-      <p className="small-semibold lg:body-bold text-primary-500">{value}</p>
-      <p className="small-medium lg:base-medium text-light-2">{label}</p>
-    </div>
-  );
-  
-const Profile = () => {
-  const { id } = useParams();
-  const { user } = useUserContext();
-  const { pathname } = useLocation();
+import LikedPosts from "./LikedPosts";
 
-  const { data: currentUser } = useGetUserById(id || "");
+interface StabBlockProps {
+  value: string | number;
+  label: string;
+}
+
+const StatBlock = ({ value, label }: StabBlockProps) => (
+  <div className="flex-center gap-2">
+    <p className="small-semibold lg:body-bold text-primary-500">{value}</p>
+    <p className="small-medium lg:base-medium text-light-2">{label}</p>
+  </div>
+);
+
+type ProfileWrapperProps = {
+  params: { id: string };
+};
+
+const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
+  const { user } = useUserContext();
+  const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
+  
+  const id = params?.id;
+
+  const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
   const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");
   
-  // Follow functionality
   const { data: followersCount, isLoading: followersLoading } = useGetFollowersCount(id || "");
   const { data: followingCount, isLoading: followingLoading } = useGetFollowingCount(id || "");
   const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(id || "");
@@ -61,134 +59,180 @@ const Profile = () => {
       followMutation.mutate(id);
     }
   };
-  
-  const isOwnProfile = user?.id === id;    if (!currentUser)
-      return (
-        <div className="flex-center w-full h-full">
-          <Loader />
-        </div>
-      );
-  
-    return (
-      <div className="profile-container">
-        <div className="flex items-start gap-8 flex-row relative max-w-5xl w-full mb-8">
-          <img
-            src={
-              currentUser.image_url || "/assets/icons/profile-placeholder.svg"
-            }
-            alt="profile"
-            className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 xl:w-36 xl:h-36 rounded-full flex-shrink-0"
-          />
-          <div className="flex flex-col flex-1 min-w-0">
-            <div className="flex items-center justify-between w-full mb-4">
-              <div className="flex flex-col">
-                <h1 className="text-left text-2xl sm:text-3xl md:text-4xl font-bold">
-                  {currentUser.name}
-                </h1>
-                <p className="text-sm sm:text-base text-light-3 text-left mt-1">
-                  @{currentUser.username}
-                </p>
-              </div>
-              
-              <div className="ml-4">
-                <div className={`${isOwnProfile && "hidden"}`}>
-                  <Button
-                    type="button"
-                    className={`h-10 px-4 text-light-1 flex-center gap-2 rounded-lg ${
-                      isCurrentlyFollowing 
-                        ? "bg-dark-4 hover:bg-dark-3" 
-                        : "bg-primary-500 hover:bg-primary-600"
-                    }`}
-                    onClick={handleFollowToggle}
-                    disabled={followMutation.isPending || unfollowMutation.isPending || isFollowingLoading}
-                  >
-                    <p className="flex whitespace-nowrap small-medium">
-                      {followMutation.isPending || unfollowMutation.isPending 
-                        ? "Loading..." 
-                        : isCurrentlyFollowing 
-                          ? "Unfollow" 
-                          : "Follow"
-                      }
-                    </p>
-                  </Button>
-                </div>
-                
-                <div className={`${!isOwnProfile && "hidden"}`}>
-                  <Link
-                    to={`/update-profile/${currentUser.id}`}
-                    className="h-10 bg-dark-4 px-4 text-light-1 flex-center gap-2 rounded-lg hover:bg-dark-3"
-                  >
-                    <img
-                      src={"/assets/icons/edit.svg"}
-                      alt="edit"
-                      width={16}
-                      height={16}
-                    />
-                    <p className="flex whitespace-nowrap small-medium">
-                      Edit Profile
-                    </p>
-                  </Link>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex gap-4 sm:gap-6 md:gap-8 mb-4 items-center justify-start flex-wrap">
+  // ==================================================================
+  // NEW ROBUST SHARE/COPY FUNCTION
+  // ==================================================================
+  const handleShareProfile = async () => {
+    const url = window.location.href;
+
+    // --- 1. Try Web Share API (Mobile, HTTPS only) ---
+    if (navigator.share && window.location.protocol === 'https:') {
+      try {
+        await navigator.share({
+          title: `${currentUser.name}'s Profile`,
+          text: `Check out ${currentUser.name}'s profile (@${currentUser.username})!`,
+          url: url,
+        });
+        return; // Success!
+      } catch (error) {
+        console.error("Web Share API failed:", error);
+      }
+    }
+
+    // --- 2. Fallback to Modern Clipboard API (If available) ---
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(url);
+        alert("Profile URL copied to clipboard!");
+        return; // Success!
+      } catch (error) {
+        console.error("Clipboard API failed:", error);
+      }
+    }
+
+    // --- 3. Ultimate Fallback: Legacy execCommand (for HTTP/older browsers) ---
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      alert("Profile URL copied to clipboard!");
+    } catch (error) {
+      console.error("Legacy copy command failed:", error);
+      alert("Could not copy URL. Please copy it manually.");
+    }
+  };
+  // ==================================================================
+
+  const isOwnProfile = user?.id === id;
+
+  if (isUserLoading) {
+    return <div className="flex-center w-full h-full"><Loader /></div>;
+  }
+  if (userError) {
+    return <div className="flex-center w-full h-full"><p className="text-light-1">Error loading user profile</p></div>;
+  }
+  if (!currentUser) {
+    return <div className="flex-center w-full h-full"><p className="text-light-1">User not found</p></div>;
+  }
+
+  const ActionButtons = () => (
+    <div className="flex gap-2 w-full mt-3">
+      {isOwnProfile ? (
+        <>
+          <Link
+            href={`/update-profile/${currentUser.id}`}
+            className="h-10 bg-dark-4 px-4 text-light-1 flex-center gap-2 rounded-lg hover:bg-dark-3 flex-1"
+          >
+            <p className="flex whitespace-nowrap small-medium">Edit Profile</p>
+          </Link>
+          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
+            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            type="button"
+            className={`h-10 px-4 text-light-1 flex-center gap-2 rounded-lg flex-1 ${
+              isCurrentlyFollowing 
+                ? "bg-dark-4 hover:bg-dark-3" 
+                : "bg-primary-500 hover:bg-primary-600"
+            }`}
+            onClick={handleFollowToggle}
+            disabled={followMutation.isPending || unfollowMutation.isPending || isFollowingLoading}
+          >
+            <p className="flex whitespace-nowrap small-medium">
+              {followMutation.isPending || unfollowMutation.isPending 
+                ? "Loading..." 
+                : isCurrentlyFollowing 
+                  ? "Following" 
+                  : "Follow"
+              }
+            </p>
+          </Button>
+          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
+            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="profile-container">
+      <div className="flex flex-col w-full max-w-5xl">
+        <div className="flex flex-row items-center gap-4 sm:gap-6 w-full">
+          <img
+            src={currentUser.image_url || "/assets/icons/profile-placeholder.svg"}
+            alt="profile"
+            className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex-shrink-0"
+          />
+          <div className="flex flex-col items-start w-full">
+            <h1 className="text-left text-xl sm:text-2xl font-bold">
+              {currentUser.name}
+            </h1>
+            <p className="text-sm text-light-3 text-left">
+              @{currentUser.username}
+            </p>
+
+            <div className="flex gap-4 sm:gap-6 mt-3">
               <StatBlock value={isPostsLoading ? "..." : userPosts?.length || 0} label="Posts" />
               <StatBlock value={followersLoading ? "..." : followersCount || 0} label="Followers" />
               <StatBlock value={followingLoading ? "..." : followingCount || 0} label="Following" />
             </div>
-
-            <LinkifiedText 
-              text={currentUser.bio || ""}
-              className="text-sm sm:text-base text-left max-w-none sm:max-w-md mb-4"
-            />
           </div>
         </div>
+        
+        <div className="mt-2 w-full">
+            <LinkifiedText 
+              text={currentUser.bio || ""}
+              className="text-sm text-left"
+            />
+        </div>
 
+        <ActionButtons />
+      </div>
+      
+      <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2">
         {currentUser.id === user?.id && (
-          <div className="flex max-w-5xl w-full mt-8">
-            <Link
-              to={`/profile/${id}`}
+          <div className="flex max-w-5xl w-full">
+            <button
+              onClick={() => setActiveTab('posts')}
               className={`profile-tab rounded-l-lg ${
-                pathname === `/profile/${id}` && "!bg-dark-3"
-              }`}>
-              <img
-                src={"/assets/icons/posts.svg"}
-                alt="posts"
-                width={20}
-                height={20}
-              />
+                activeTab === 'posts' && "!bg-dark-3"
+              }`}
+            >
+              <img src={"/assets/icons/posts.svg"} alt="posts" width={20} height={20} />
               Posts
-            </Link>
-            <Link
-              to={`/profile/${id}/liked-posts`}
+            </button>
+            <button
+              onClick={() => setActiveTab('liked')}
               className={`profile-tab rounded-r-lg ${
-                pathname === `/profile/${id}/liked-posts` && "!bg-dark-3"
-              }`}>
-              <img
-                src={"/assets/icons/like.svg"}
-                alt="like"
-                width={20}
-                height={20}
-              />
+                activeTab === 'liked' && "!bg-dark-3"
+              }`}
+            >
+              <img src={"/assets/icons/like.svg"} alt="like" width={20} height={20} />
               Liked Posts
-            </Link>
+            </button>
           </div>
         )}
-
-        <Routes>
-          <Route
-            index
-            element={<GridPostList posts={userPosts || []} showUser={false} />}
-          />
-          {currentUser.id === user?.id && (
-            <Route path="/liked-posts" element={<LikedPosts />} />
-          )}
-        </Routes>
-        <Outlet />
       </div>
-    );
-    };
-  
-  export default Profile;
-  
+
+      <div className="w-full max-w-5xl mt-4">
+        {activeTab === 'posts' ? (
+          <GridPostList posts={userPosts || []} showUser={false} />
+        ) : (
+          currentUser.id === user?.id && <LikedPosts />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProfileWrapper;

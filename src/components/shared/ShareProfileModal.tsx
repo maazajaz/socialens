@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 type ShareProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
+<<<<<<< HEAD
   user: any;
 };
 
@@ -13,6 +14,16 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
 
   const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${user.id}`;
   const shareText = `Check out ${user.name}'s profile on Socialens!`;
+=======
+  profile: any;
+};
+
+const ShareProfileModal = ({ isOpen, onClose, profile }: ShareProfileModalProps) => {
+  const [copied, setCopied] = useState(false);
+
+  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${profile.id}`;
+  const shareText = `Check out ${profile.name}'s profile (@${profile.username})!${profile.bio ? ' ' + profile.bio : ''}`;
+>>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
 
   const shareOptions = [
     {
@@ -48,6 +59,7 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
   ];
 
   const handleCopyLink = async () => {
+<<<<<<< HEAD
     // Fallback for browsers that do not support navigator.clipboard (e.g., iOS Safari)
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
@@ -71,6 +83,27 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
       } catch (error) {
         console.error('Failed to copy link (fallback):', error);
       }
+=======
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(profileUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for iOS Safari and older browsers
+        const tempInput = document.createElement('input');
+        tempInput.value = profileUrl;
+        document.body.appendChild(tempInput);
+        tempInput.focus();
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+>>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
     }
   };
 
@@ -78,12 +111,20 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+<<<<<<< HEAD
+=======
+  // Close modal when clicking outside
+>>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
+<<<<<<< HEAD
+=======
+  // Close modal on escape key
+>>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -121,6 +162,7 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
           </button>
         </div>
 
+<<<<<<< HEAD
         {/* Profile Preview */}
         <div className="mb-6 p-3 bg-dark-3 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
@@ -132,6 +174,19 @@ const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) =>
             <span className="text-light-2 text-sm font-medium">{user.name}</span>
           </div>
           <p className="text-light-3 text-sm line-clamp-2">{user.bio}</p>
+=======
+        {/* Preview */}
+        <div className="mb-6 p-3 bg-dark-3 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <img
+              src={profile.image_url || "/assets/icons/profile-placeholder.svg"}
+              alt="profile"
+              className="w-8 h-8 rounded-full"
+            />
+            <span className="text-light-2 text-sm font-medium">{profile.name}</span>
+          </div>
+          <p className="text-light-3 text-sm line-clamp-2">{profile.bio}</p>
+>>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
         </div>
 
         {/* Share Options */}
