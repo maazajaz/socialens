@@ -1,21 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-
 import { useUserContext } from "@/context/SupabaseAuthContext";
-import { useSignOutAccount } from "@/lib/react-query/queriesAndMutations";
 
-const Topbar = () => {
-  const router = useRouter();
+const SharedPostTopbar = () => {
   const { user } = useUserContext();
-  const { mutate: signOut, isSuccess } = useSignOutAccount();
-
-  useEffect(() => {
-    if (isSuccess) router.push("/sign-in");
-  }, [isSuccess, router]);
 
   return (
     <section className="topbar">
@@ -28,18 +17,12 @@ const Topbar = () => {
             height={325}
           />
         </Link>
-
         <div className="flex gap-4">
-          <button
-            className="shad-button_ghost"
-            onClick={() => signOut()}>
-            <img src="/assets/icons/logout.svg" alt="logout" />
-          </button>
-          <Link href={`/profile/${user?.id}`} className="flex-center gap-3">
+          <Link href="/sign-in" className="flex-center gap-3">
             <img
               src={user?.image_url || "/assets/icons/profile-placeholder.svg"}
               alt="profile"
-              className="h-8 w-8 rounded-full"
+              className="h-8 w-8 rounded-full cursor-pointer"
             />
           </Link>
         </div>
@@ -48,4 +31,4 @@ const Topbar = () => {
   );
 };
 
-export default Topbar;
+export default SharedPostTopbar;

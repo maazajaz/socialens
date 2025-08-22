@@ -2,67 +2,61 @@
 
 import { useState, useEffect } from "react";
 
-type ShareModalProps = {
+type ShareProfileModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  post: any;
-  isProfile?: boolean;
+  profile: any;
 };
 
-const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProps) => {
+const ShareProfileModal = ({ isOpen, onClose, profile }: ShareProfileModalProps) => {
   const [copied, setCopied] = useState(false);
-  
 
-  const postUrl = isProfile
-    ? post.url || `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${post.id}`
-    : `${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${post.id}`;
-  const shareText = isProfile
-    ? `Check out ${post.name}'s profile (@${post.username})!${post.bio ? ' ' + post.bio : ''}`
-    : `Check out this post by ${post.creator?.name}: ${post.caption}`;
+  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${profile.id}`;
+  const shareText = `Check out ${profile.name}'s profile (@${profile.username})!${profile.bio ? ' ' + profile.bio : ''}`;
 
   const shareOptions = [
     {
       name: "WhatsApp",
       icon: "💬",
       color: "bg-green-500 hover:bg-green-600",
-      url: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + postUrl)}`
+      url: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + profileUrl)}`
     },
     {
       name: "Twitter",
       icon: "🐦",
       color: "bg-blue-400 hover:bg-blue-500",
-      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(postUrl)}`
+      url: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(profileUrl)}`
     },
     {
       name: "Facebook",
       icon: "📘",
       color: "bg-blue-600 hover:bg-blue-700",
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`
     },
     {
       name: "LinkedIn",
       icon: "💼",
       color: "bg-blue-700 hover:bg-blue-800",
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`
+      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`
     },
     {
       name: "Telegram",
       icon: "✈️",
       color: "bg-blue-500 hover:bg-blue-600",
-      url: `https://t.me/share/url?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent(shareText)}`
+      url: `https://t.me/share/url?url=${encodeURIComponent(profileUrl)}&text=${encodeURIComponent(shareText)}`
     }
   ];
 
   const handleCopyLink = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(postUrl);
+        await navigator.clipboard.writeText(profileUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } else {
         // Fallback for iOS Safari and older browsers
         const tempInput = document.createElement('input');
-        tempInput.value = postUrl;
+        tempInput.value = profileUrl;
         document.body.appendChild(tempInput);
         tempInput.focus();
         tempInput.select();
@@ -116,7 +110,7 @@ const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProp
       <div className="bg-dark-2 rounded-lg p-6 w-full max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-light-1 text-lg font-semibold">{isProfile ? 'Share Profile' : 'Share Post'}</h3>
+          <h3 className="text-light-1 text-lg font-semibold">Share Profile</h3>
           <button
             onClick={onClose}
             className="text-light-3 hover:text-light-1 text-xl"
@@ -129,16 +123,13 @@ const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProp
         <div className="mb-6 p-3 bg-dark-3 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <img
-              src={isProfile
-                ? post.image_url || "/assets/icons/profile-placeholder.svg"
-                : post.creator?.image_url || "/assets/icons/profile-placeholder.svg"
-              }
-              alt={isProfile ? "profile" : "creator"}
+              src={profile.image_url || "/assets/icons/profile-placeholder.svg"}
+              alt="profile"
               className="w-8 h-8 rounded-full"
             />
-            <span className="text-light-2 text-sm font-medium">{isProfile ? post.name : post.creator?.name}</span>
+            <span className="text-light-2 text-sm font-medium">{profile.name}</span>
           </div>
-          <p className="text-light-3 text-sm line-clamp-2">{isProfile ? post.bio : post.caption}</p>
+          <p className="text-light-3 text-sm line-clamp-2">{profile.bio}</p>
         </div>
 
         {/* Share Options */}
@@ -160,7 +151,7 @@ const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProp
           <div className="flex items-center gap-2 bg-dark-3 rounded-lg p-2">
             <input
               type="text"
-              value={postUrl}
+              value={profileUrl}
               readOnly
               className="flex-1 bg-transparent text-light-2 text-sm outline-none"
             />
@@ -181,4 +172,4 @@ const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProp
   );
 };
 
-export default ShareModal;
+export default ShareProfileModal;

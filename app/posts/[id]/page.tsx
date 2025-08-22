@@ -1,4 +1,5 @@
 "use client";
+import SharedPostTopbar from "../../../src/components/shared/SharedPostTopbar";
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,7 @@ interface PostDetailPageProps {
 }
 
 const PostDetailPage = ({ params }: PostDetailPageProps) => {
+  // ...existing code...
   const router = useRouter();
   const { id } = use(params);
   const { user } = useUserContext();
@@ -50,7 +52,9 @@ const PostDetailPage = ({ params }: PostDetailPageProps) => {
   }
 
   return (
-    <div className="post_details-container">
+    <>
+      <SharedPostTopbar />
+      <div className="post_details-container">
       <div className="hidden md:flex max-w-5xl w-full">
         <Button
           onClick={() => router.back()}
@@ -156,7 +160,8 @@ const PostDetailPage = ({ params }: PostDetailPageProps) => {
         <hr className="border w-full border-dark-4/80 my-6" />
         <Comments postId={id} />
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
