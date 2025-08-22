@@ -1038,7 +1038,10 @@ export async function getPostComments(postId: string): Promise<Comment[]> {
       .is('parent_id', null)
       .order('created_at', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      console.error('Error fetching comments:', error);
+      throw error;
+    }
 
     const commentsWithReplies = await Promise.all(
       (data || []).map(async (comment) => {
