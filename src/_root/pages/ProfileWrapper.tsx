@@ -39,7 +39,6 @@ type ProfileWrapperProps = {
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   const { user } = useUserContext();
   const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
-  const [isShareModalOpen, setShareModalOpen] = useState(false);
   
   const id = params?.id;
 
@@ -63,57 +62,11 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
     }
   };
 
-<<<<<<< HEAD
   const [showShareModal, setShowShareModal] = useState(false);
   const handleShareProfile = () => {
     setShowShareModal(true);
   };
   
-=======
-  const ActionButtons = () => (
-    <div className="flex gap-2 w-full mt-3">
-      {isOwnProfile ? (
-        <>
-          <Link
-            href={`/update-profile/${currentUser.id}`}
-            className="h-10 bg-dark-4 px-4 text-light-1 flex-center gap-2 rounded-lg hover:bg-dark-3 flex-1"
-          >
-            <p className="flex whitespace-nowrap small-medium">Edit Profile</p>
-          </Link>
-          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={() => setShareModalOpen(true)}>
-            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
-          </Button>
-        </>
-      ) : (
-        <>
-          <Button
-            type="button"
-            className={`h-10 px-4 text-light-1 flex-center gap-2 rounded-lg flex-1 ${
-              isCurrentlyFollowing 
-                ? "bg-dark-4 hover:bg-dark-3" 
-                : "bg-primary-500 hover:bg-primary-600"
-            }`}
-            onClick={handleFollowToggle}
-            disabled={followMutation.isPending || unfollowMutation.isPending || isFollowingLoading}
-          >
-            <p className="flex whitespace-nowrap small-medium">
-              {followMutation.isPending || unfollowMutation.isPending 
-                ? "Loading..." 
-                : isCurrentlyFollowing 
-                  ? "Following" 
-                  : "Follow"
-              }
-            </p>
-          </Button>
-          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={() => setShareModalOpen(true)}>
-            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
-          </Button>
-        </>
-      )}
-    </div>
-  );
-
->>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
   const isOwnProfile = user?.id === id;
 
   if (isUserLoading) {
@@ -125,7 +78,6 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   if (!currentUser) {
     return <div className="flex-center w-full h-full"><p className="text-light-1">User not found</p></div>;
   }
-<<<<<<< HEAD
 
   // ACTION BUTTONS - GAP REDUCED
   const ActionButtons = () => (
@@ -181,13 +133,6 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
       <div className="flex flex-col w-full max-w-5xl">
         {/* MAIN HEADER - ALIGNMENT CHANGED */}
         <div className="flex flex-row items-center gap-4 sm:gap-6 w-full"> {/* CHANGED: items-start to items-center */}
-=======
-
-  return (
-    <div className="profile-container">
-      <div className="flex flex-col w-full max-w-5xl">
-        <div className="flex flex-row items-center gap-4 sm:gap-6 w-full">
->>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
           <img
             src={currentUser.image_url || "/assets/icons/profile-placeholder.svg"}
             alt="profile"
@@ -209,12 +154,8 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
           </div>
         </div>
         
-<<<<<<< HEAD
         {/* BIO - GAP REDUCED */}
         <div className="mt-2 w-full"> {/* CHANGED: mt-3 to mt-2 */}
-=======
-        <div className="mt-2 w-full">
->>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
             <LinkifiedText 
               text={currentUser.bio || ""}
               className="text-sm text-left"
@@ -224,12 +165,8 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
         <ActionButtons />
       </div>
       
-<<<<<<< HEAD
       {/* POSTS TABS - GAP REDUCED */}
       <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2"> {/* CHANGED: mt-3 pt-2 to mt-2 pt-2 */}
-=======
-      <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2">
->>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
         {currentUser.id === user?.id && (
           <div className="flex max-w-5xl w-full">
             <button
@@ -261,14 +198,6 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
           currentUser.id === user?.id && <LikedPosts />
         )}
       </div>
-
-      {currentUser && (
-        <ShareProfileModal
-          isOpen={isShareModalOpen}
-          onClose={() => setShareModalOpen(false)}
-          profile={currentUser}
-        />
-      )}
     </div>
   );
 };

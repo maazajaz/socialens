@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-
+import { Button } from "../ui/button";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import { useSignOutAccount } from "@/lib/react-query/queriesAndMutations";
 import NotificationBell from "@/components/shared/NotificationBell";
@@ -30,19 +30,14 @@ const Topbar = () => {
           />
         </Link>
 
-<<<<<<< HEAD
         <div className="flex gap-4 items-center">
           <NotificationBell />
           <Button
             variant="ghost"
-=======
-        <div className="flex gap-4">
-          <button
->>>>>>> aac72d0c28f60d67fcffa29b2806f437ad428fd7
             className="shad-button_ghost"
             onClick={() => signOut()}>
             <img src="/assets/icons/logout.svg" alt="logout" />
-          </button>
+          </Button>
           <Link href={`/profile/${user?.id}`} className="flex-center gap-3">
             <img
               src={user?.image_url || "/assets/icons/profile-placeholder.svg"}
