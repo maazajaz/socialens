@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import PostStats from "./PostStats";
 
@@ -15,11 +17,16 @@ const GridPostList = ({
 }: GridPostListProps) => {
   const { user } = useUserContext();
 
+  // Add null check for user context
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <ul className="grid-container">
       {posts.map((post) => (
         <li key={post.id || post.$id} className="relative min-w-80 h-80">
-          <Link to={`/posts/${post.id || post.$id}`} className="grid-post_link">
+          <Link href={`/posts/${post.id || post.$id}`} className="grid-post_link">
             <img
               src={post.image_url || post.imageUrl}
               alt="post"

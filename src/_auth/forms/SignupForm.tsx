@@ -15,7 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { SignupValidation } from "@/lib/validation"
 import Loader from "@/components/shared/Loader"
-import { Link } from "react-router-dom"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useCreateUserAccount, useSignInAccount } from "@/lib/react-query/queriesAndMutations"
 
@@ -143,7 +144,7 @@ const SignupForm = () => {
           <p className="text-sm text-light-2 text-center mt-2">
             Already have an account?
             <Link
-              to="/sign-in"
+              href="/sign-in"
               className="text-primary-500 text-sm font-semibold ml-1">
               Log in
             </Link>

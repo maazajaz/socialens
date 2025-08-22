@@ -1,6 +1,8 @@
+"use client";
+
 import * as z from "zod";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PostValidation } from "@/lib/validation";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,7 +21,7 @@ type PostFormProps = {
 };
 
 const PostForm = ({ post, action }: PostFormProps) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
   const { user } = useUserContext();
   const form = useForm<z.infer<typeof PostValidation>>({
@@ -70,7 +72,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
         toast({
           title: `Post ${action.toLowerCase()}d successfully!`,
         });
-        return navigate(`/posts/${post.id}`);
+        return router.push(`/posts/${post.id}`);
       }
 
       // ACTION = CREATE
@@ -90,7 +92,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
       toast({
         title: `Post ${action.toLowerCase()}d successfully!`,
       });
-      navigate("/");
+      router.push("/");
     } catch (error) {
       console.error(`Error ${action.toLowerCase()}ing post:`, error);
       toast({
@@ -178,7 +180,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
           <Button
             type="button"
             className="shad-button_dark_4"
-            onClick={() => navigate(-1)}>
+            onClick={() => router.back()}>
             Cancel
           </Button>
           <Button

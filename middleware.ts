@@ -1,7 +1,9 @@
-// Middleware temporarily disabled
-export async function middleware(request: any) {
-  // Return early to disable middleware
-  return
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  // Temporarily disable middleware to debug auth issues
+  return NextResponse.next()
 }
 
 export const config = {

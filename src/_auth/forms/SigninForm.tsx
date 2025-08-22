@@ -3,7 +3,8 @@
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ import { useUserContext } from "@/context/SupabaseAuthContext";
 
 const SigninForm = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
 
   // Query
@@ -45,7 +46,7 @@ const SigninForm = () => {
       if (isLoggedIn) {
         form.reset();
         toast({ title: "Login successful!" });
-        navigate("/");
+        router.push("/");
       } else {
         toast({ title: "Authentication check failed. Please try again." });
         return;
@@ -116,7 +117,7 @@ const SigninForm = () => {
           <p className="text-sm text-light-2 text-center mt-3 sm:mt-4">
             Don&apos;t have an account?
             <Link
-              to="/sign-up"
+              href="/sign-up"
               className="text-primary-500 text-sm font-semibold ml-1">
               Sign up
             </Link>

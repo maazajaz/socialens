@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 
 import { INavLink } from "@/types";
 import { sidebarLinks } from "@/constants";
@@ -13,8 +14,8 @@ import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "./Loader";
 
 const LeftSidebar = () => {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const { user, setUser, setIsAuthenticated, isLoading } = useUserContext();
   
   // Debug logging
@@ -31,13 +32,13 @@ const LeftSidebar = () => {
     signOut();
     setIsAuthenticated(false);
     setUser(INITIAL_USER);
-    navigate("/sign-in");
+    router.push("/sign-in");
   };
 
   return (
     <nav className="leftsidebar">
       <div className="flex flex-col gap-11">
-        <Link to="/" className="flex gap-3 items-center">
+        <Link href="/" className="flex gap-3 items-center">
           <img
             src="/assets/images/logo.svg"
             alt="logo"
@@ -51,7 +52,7 @@ const LeftSidebar = () => {
             <Loader />
           </div>
         ) : (
-          <Link to={`/profile/${user.id}`} className="flex gap-3 items-center">
+          <Link href={`/profile/${user.id}`} className="flex gap-3 items-center">
             <img
               src={user.image_url || "/assets/icons/profile-placeholder.svg"}
               alt="profile"
@@ -75,7 +76,7 @@ const LeftSidebar = () => {
                   isActive && "bg-primary-500"
                 }`}>
                 <Link
-                  to={link.route}
+                  href={link.route}
                   className="flex gap-4 items-center p-4">
                   <img
                     src={link.imgURL}

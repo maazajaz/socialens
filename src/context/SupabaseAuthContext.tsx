@@ -36,12 +36,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use refs to always have current state values in event handlers
   const userRef = useRef<User | null>(null)
   const isAuthenticatedRef = useRef(false)
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Keep refs in sync with state
   useEffect(() => {
     userRef.current = user
     isAuthenticatedRef.current = isAuthenticated
   }, [user, isAuthenticated])
+
+  // Add a safety timeout to prevent infinite loading
+  useEffect(() => {
+    if (isLoading) {
+      // Clear any existing timeout
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+      
+      // Set a timeout to force loading to false after 5 seconds
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn('Auth loading timeout reached, forcing loading to false')
+        setIsLoading(false)
+      }, 5000) // 5 second timeout instead of 10
+    } else {
+      // Clear timeout when not loading
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+        loadingTimeoutRef.current = null
+      }
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+    }
+  }, [isLoading])
 
   const supabase = createClient()
 
@@ -94,8 +123,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Auth check error:', error)
       // Don't clear user data on error - might be temporary network issue
+      // But ensure loading state is cleared
       return false
     } finally {
+      // Always ensure loading is set to false
       setIsLoading(false)
     }
   }
@@ -169,9 +200,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.error('Silent auth refresh error:', error)
               }
             } else {
-              console.log('No existing user data, showing loading')
-              // No existing user data, show loading
-              await checkAuthUser()
+              console.log('No existing user data, checking if user is already in localStorage')
+              // Check if we have cached user data first
+              const cachedUser = typeof window !== 'undefined' ? localStorage.getItem('socialens_user') : null
+              const cachedAuth = typeof window !== 'undefined' ? localStorage.getItem('socialens_auth') : null
+              
+              if (cachedUser && cachedAuth === 'true') {
+                try {
+                  const userData = JSON.parse(cachedUser)
+                  console.log('Found cached user data, using it:', userData.name)
+                  setUser(userData)
+                  setIsAuthenticated(true)
+                  setIsLoading(false) // Important: Don't trigger loading state
+                } catch (error) {
+                  console.error('Error parsing cached user:', error)
+                  localStorage.removeItem('socialens_user')
+                  localStorage.removeItem('socialens_auth')
+                  console.log('Cached data corrupted, fetching fresh user data')
+                  await checkAuthUser()
+                }
+              } else {
+                console.log('No cached data, fetching fresh user data')
+                await checkAuthUser()
+              }
             }
           }
         } else if (event === 'TOKEN_REFRESHED') {
@@ -219,32 +270,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleFocus = async () => {
       clearTimeout(refreshTimeout)
       refreshTimeout = setTimeout(async () => {
-        if (userRef.current?.id && isAuthenticatedRef.current) {
-          console.log('Window focused, refreshing auth silently (user already exists)...')
-          try {
-            const currentAccount = await getCurrentUser()
-            if (currentAccount) {
-              setUser(currentAccount)
-              setIsAuthenticated(true)
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('socialens_user', JSON.stringify(currentAccount))
-                localStorage.setItem('socialens_auth', 'true')
-              }
-            }
-          } catch (error) {
-            console.error('Focus auth refresh error:', error)
-          }
-        }
-      }, 100) // Debounce by 100ms
-    }
-
-    const handleVisibilityChange = async () => {
-      clearTimeout(refreshTimeout)
-      if (!document.hidden) {
-        refreshTimeout = setTimeout(async () => {
-          if (userRef.current?.id && isAuthenticatedRef.current) {
-            console.log('Tab became visible, refreshing auth silently (user already exists)...')
-            try {
+        console.log('Window focused, checking auth state...')
+        try {
+          // Check if we have a valid session first
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          if (session?.user) {
+            // If we have a session but no user data, refresh
+            if (!userRef.current?.id || !isAuthenticatedRef.current) {
+              console.log('Session exists but user data missing, refreshing...')
+              await checkAuthUser()
+            } else {
+              // Silent refresh for existing user
+              console.log('User already exists, silent refresh...')
               const currentAccount = await getCurrentUser()
               if (currentAccount) {
                 setUser(currentAccount)
@@ -254,9 +292,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   localStorage.setItem('socialens_auth', 'true')
                 }
               }
-            } catch (error) {
-              console.error('Visibility auth refresh error:', error)
             }
+          } else {
+            // No session - check if we have cached data that needs to be cleared
+            if (userRef.current?.id || isAuthenticatedRef.current) {
+              console.log('No session but user data exists, clearing...')
+              setUser(null)
+              setIsAuthenticated(false)
+              setIsLoading(false)
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('socialens_user')
+                localStorage.removeItem('socialens_auth')
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Focus auth refresh error:', error)
+          // Don't clear user data on error - might be temporary network issue
+        }
+      }, 100) // Debounce by 100ms
+    }
+
+    const handleVisibilityChange = async () => {
+      clearTimeout(refreshTimeout)
+      if (!document.hidden) {
+        refreshTimeout = setTimeout(async () => {
+          console.log('Tab became visible, checking auth state...')
+          try {
+            // Check if we have a valid session first
+            const { data: { session } } = await supabase.auth.getSession()
+            
+            if (session?.user) {
+              // If we have a session but no user data, refresh
+              if (!userRef.current?.id || !isAuthenticatedRef.current) {
+                console.log('Session exists but user data missing, refreshing...')
+                await checkAuthUser()
+              } else {
+                // Silent refresh for existing user
+                console.log('User already exists, silent refresh...')
+                const currentAccount = await getCurrentUser()
+                if (currentAccount) {
+                  setUser(currentAccount)
+                  setIsAuthenticated(true)
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('socialens_user', JSON.stringify(currentAccount))
+                    localStorage.setItem('socialens_auth', 'true')
+                  }
+                }
+              }
+            } else {
+              // No session - check if we have cached data that needs to be cleared
+              if (userRef.current?.id || isAuthenticatedRef.current) {
+                console.log('No session but user data exists, clearing...')
+                setUser(null)
+                setIsAuthenticated(false)
+                setIsLoading(false)
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('socialens_user')
+                  localStorage.removeItem('socialens_auth')
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Visibility auth refresh error:', error)
+            // Don't clear user data on error - might be temporary network issue
           }
         }, 100) // Debounce by 100ms
       }

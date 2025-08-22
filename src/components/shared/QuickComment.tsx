@@ -8,7 +8,9 @@ import {
   Comment, 
   likeComment, 
   unlikeComment, 
-  getCommentLikeStatus 
+  getCommentLikeStatus,
+  updateComment,
+  deleteComment
 } from "@/lib/supabase/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,9 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false);
 
   // Fetch comments when component mounts
   useEffect(() => {
@@ -133,6 +138,56 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
     } finally {
       setIsSubmittingReply(false);
     }
+  };
+
+  const handleEditComment = (commentId: string, currentContent: string) => {
+    setEditingComment(commentId);
+    setEditContent(currentContent);
+    setReplyingTo(null); // Close any open reply forms
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editContent.trim() || !user || isUpdatingComment) return;
+
+    setIsUpdatingComment(true);
+    
+    try {
+      const updatedComment = await updateComment(commentId, editContent.trim());
+      
+      if (updatedComment) {
+        setEditingComment(null);
+        setEditContent("");
+        // Refresh comments to show the updated content
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error("Error updating comment:", error);
+    } finally {
+      setIsUpdatingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    const confirmDelete = window.confirm("Are you sure you want to delete this comment?");
+    if (!confirmDelete) return;
+    
+    try {
+      const success = await deleteComment(commentId);
+      
+      if (success) {
+        // Refresh comments to remove the deleted one
+        await fetchComments();
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditingComment(null);
+    setEditContent("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -254,9 +309,50 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
                         )}
                       </div>
                       
-                      <p className="text-sm text-light-2 whitespace-pre-wrap break-words">
-                        {commentItem.content}
-                      </p>
+                      {/* Comment Content - Edit Mode */}
+                      {editingComment === commentItem.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="w-full border rounded px-2 py-1 text-xs bg-dark-3 border-dark-3 text-light-1 placeholder:text-light-4 focus:border-primary-500"
+                            maxLength={2200}
+                            disabled={isUpdatingComment}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUpdateComment(commentItem.id);
+                              }
+                              if (e.key === 'Escape') {
+                                cancelEdit();
+                              }
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm" 
+                              onClick={() => handleUpdateComment(commentItem.id)}
+                              disabled={isUpdatingComment || !editContent.trim()}
+                              className="text-xs px-2 py-1 h-6 bg-primary-500 text-white hover:bg-primary-600 disabled:bg-dark-3"
+                            >
+                              {isUpdatingComment ? "Saving..." : "Save"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelEdit}
+                              className="text-xs px-2 py-1 h-6 text-light-4 hover:text-light-2"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-light-2 whitespace-pre-wrap break-words">
+                          {commentItem.content}
+                        </p>
+                      )}
                     </div>
 
                     {/* Comment Meta */}
@@ -292,6 +388,29 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
                       >
                         {replyingTo === commentItem.id ? 'Cancel' : 'Reply'}
                       </Button>
+
+                      {/* Edit and Delete buttons - only show if comment belongs to current user */}
+                      {user && commentItem.user.id === user.id && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditComment(commentItem.id, commentItem.content)}
+                            className="text-xs text-light-4 hover:text-blue-500 px-1 py-0 h-auto"
+                          >
+                            Edit
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteComment(commentItem.id)}
+                            className="text-xs text-light-4 hover:text-red-500 px-1 py-0 h-auto"
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     {/* Reply Form */}
@@ -361,9 +480,50 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
                                     <span className="text-xs text-light-4">• edited</span>
                                   )}
                                 </div>
-                                <p className="text-xs text-light-2 whitespace-pre-wrap break-words">
-                                  {reply.content}
-                                </p>
+                                {/* Reply Content - Edit Mode */}
+                                {editingComment === reply.id ? (
+                                  <div className="space-y-2">
+                                    <Input
+                                      type="text"
+                                      value={editContent}
+                                      onChange={(e) => setEditContent(e.target.value)}
+                                      className="w-full border rounded px-2 py-1 text-xs bg-dark-3 border-dark-3 text-light-1 placeholder:text-light-4 focus:border-primary-500"
+                                      maxLength={2200}
+                                      disabled={isUpdatingComment}
+                                      onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleUpdateComment(reply.id);
+                                        }
+                                        if (e.key === 'Escape') {
+                                          cancelEdit();
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm" 
+                                        onClick={() => handleUpdateComment(reply.id)}
+                                        disabled={isUpdatingComment || !editContent.trim()}
+                                        className="text-xs px-2 py-1 h-6 bg-primary-500 text-white hover:bg-primary-600 disabled:bg-dark-3"
+                                      >
+                                        {isUpdatingComment ? "Saving..." : "Save"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={cancelEdit}
+                                        className="text-xs px-2 py-1 h-6 text-light-4 hover:text-light-2"
+                                      >
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-light-2 whitespace-pre-wrap break-words">
+                                    {reply.content}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             
@@ -391,6 +551,29 @@ const QuickComment = ({ postId, onCommentAdded }: QuickCommentProps) => {
                               >
                                 {likedComments.has(reply.id) ? 'Unlike' : 'Like'}
                               </Button>
+
+                              {/* Edit and Delete buttons for replies - only show if reply belongs to current user */}
+                              {user && reply.user.id === user.id && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditComment(reply.id, reply.content)}
+                                    className="text-xs text-light-4 hover:text-blue-500 px-1 py-0 h-auto"
+                                  >
+                                    Edit
+                                  </Button>
+
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteComment(reply.id)}
+                                    className="text-xs text-light-4 hover:text-red-500 px-1 py-0 h-auto"
+                                  >
+                                    Delete
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}

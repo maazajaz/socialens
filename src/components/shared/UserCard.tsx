@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Button } from "../ui/button";
 import { useIsFollowing, useFollowUser, useUnfollowUser } from "@/lib/react-query/queriesAndMutations";
 import { useUserContext } from "@/context/SupabaseAuthContext";
@@ -27,7 +27,7 @@ const UserCard = ({ user }: UserCardProps) => {
   const isOwnProfile = currentUser?.id === user.id;
 
   return (
-    <Link to={`/profile/${user.id}`} className="user-card">
+    <Link href={`/profile/${user.id}`} className="user-card">
       <img
         src={user.image_url || "/assets/icons/profile-placeholder.svg"}
         alt="creator"

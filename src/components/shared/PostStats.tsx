@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { usePathname } from "next/navigation";
 
 import { checkIsLiked } from "@/lib/utils";
 import {
@@ -17,7 +17,7 @@ type PostStatsProps = {
 };
 
 const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
-  const location = useLocation();
+  const pathname = usePathname();
   
   // Handle Supabase post structure
   const likesList = post.likes ? post.likes.map((like: any) => {
@@ -95,7 +95,7 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
     setIsSaved(true);
   };
 
-  const containerStyles = location.pathname.startsWith("/profile")
+  const containerStyles = pathname?.startsWith("/profile")
     ? "w-full"
     : "";
 
