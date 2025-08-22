@@ -38,12 +38,13 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
   const { mutate: savePost } = useSavePost();
   const { mutate: deleteSavePost } = useDeleteSavedPost();
 
-  const { data: currentUser } = useGetCurrentUser();
+  const { data: currentUser } = useGetCurrentUser(!!userId);
 
   // Check if post is saved - updated for Supabase structure
   useEffect(() => {
     const checkIfSaved = async () => {
-      if (currentUser?.id && post?.id) {
+      // Only check saved state if user is authenticated
+      if (userId && currentUser?.id && post?.id) {
         try {
           // Check if this post is in the saves table for this user
           const savedPosts = post.saves || [];
@@ -55,11 +56,14 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
           console.error('Error checking saved state:', error);
           setIsSaved(false);
         }
+      } else {
+        // If no user, post is definitely not saved
+        setIsSaved(false);
       }
     };
     
     checkIfSaved();
-  }, [currentUser, post.id, post.saves]);
+  }, [userId, currentUser, post.id, post.saves]);
 
   const handleLikePost = (
     e: React.MouseEvent<HTMLImageElement, MouseEvent>

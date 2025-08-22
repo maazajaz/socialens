@@ -121,7 +121,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return false
     } catch (error) {
-      console.error('Auth check error:', error)
+      // Only log non-session related errors
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (!errorMessage.includes('session_missing') && !errorMessage.includes('Auth session missing')) {
+        console.error('Auth check error:', error)
+      }
       // Don't clear user data on error - might be temporary network issue
       // But ensure loading state is cleared
       return false

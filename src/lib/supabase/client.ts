@@ -12,6 +12,12 @@ export function createClient() {
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
+      // Suppress auth session missing warnings in console
+      global: {
+        headers: {
+          'x-client-info': 'socialens-nextjs',
+        },
+      },
     }
   )
 }

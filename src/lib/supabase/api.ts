@@ -101,7 +101,10 @@ export async function getCurrentUser() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError) {
-      console.error('Auth error:', authError)
+      // Only log auth errors if they're not just "missing session" errors
+      if (!authError.message?.includes('session_missing') && !authError.message?.includes('Auth session missing')) {
+        console.error('Auth error:', authError)
+      }
       return null
     }
     
@@ -121,7 +124,11 @@ export async function getCurrentUser() {
     
     return profile
   } catch (error) {
-    console.error('Error getting current user:', error)
+    // Only log errors if they're not authentication-related
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (!errorMessage.includes('session_missing') && !errorMessage.includes('Auth session missing')) {
+      console.error('Error getting current user:', error)
+    }
     return null
   }
 }

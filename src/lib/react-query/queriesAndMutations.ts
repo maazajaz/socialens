@@ -193,10 +193,22 @@ export const useDeleteSavedPost = () => {
       },
     });
 };
-export const useGetCurrentUser = () => {
+export const useGetCurrentUser = (enabled = true) => {
     return useQuery({
       queryKey: [QUERY_KEYS.GET_CURRENT_USER],
       queryFn: getCurrentUser,
+      enabled: enabled,
+      retry: (failureCount, error) => {
+        // Don't retry if it's an auth session missing error
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes('session_missing') || errorMessage.includes('Auth session missing')) {
+          return false
+        }
+        // Only retry 2 times for other errors
+        return failureCount < 2
+      },
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
     });
 };
 export const useGetPostById = (postId?: string) => {
