@@ -145,7 +145,13 @@
 
   /* Home */
   .home-container {
-  @apply flex flex-col flex-1 items-center gap-10 overflow-y-auto py-10 px-5 pb-24 md:px-8 lg:p-14 custom-scrollbar;
+    @apply flex flex-col flex-1 items-center gap-10 overflow-y-auto py-10 px-5 pb-24 md:px-8 lg:p-14 custom-scrollbar;
+  }
+
+  @media (min-width: 1280px) {
+    .home-container {
+      margin-right: 30rem; /* only on xl screens and above */
+    }
   }
 
   .home-posts {
@@ -153,7 +159,8 @@
   }
 
   .home-creators {
-    @apply hidden xl:flex flex-col w-72 2xl:w-465 px-6 py-10 gap-10 overflow-y-auto custom-scrollbar h-screen bg-dark-2;
+    @apply hidden xl:flex flex-col w-72 2xl:w-465 px-6 py-10 gap-10 overflow-y-auto custom-scrollbar h-screen bg-dark-2 fixed right-0 top-0;
+    z-index: 10;
   }
 
   /* Post Details */
