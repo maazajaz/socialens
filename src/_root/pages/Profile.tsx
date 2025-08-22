@@ -100,7 +100,7 @@ const Profile = () => {
                         : "bg-primary-500 hover:bg-primary-600"
                     }`}
                     onClick={handleFollowToggle}
-                    disabled={followMutation.isPending || unfollowMutation.isPending}
+                    disabled={followMutation.isPending || unfollowMutation.isPending || isFollowingLoading}
                   >
                     <p className="flex whitespace-nowrap small-medium">
                       {followMutation.isPending || unfollowMutation.isPending 

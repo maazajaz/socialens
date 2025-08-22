@@ -19,12 +19,10 @@ type PostStatsProps = {
 const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
   const location = useLocation();
   
-  // Handle both Appwrite and Supabase post structures
+  // Handle Supabase post structure
   const likesList = post.likes ? post.likes.map((like: any) => {
     // Supabase structure: {user_id: string}
-    if (like.user_id) return like.user_id;
-    // Appwrite structure: {$id: string} or direct string
-    return like.id || like.$id || like;
+    return like.user_id || like;
   }) : [];
 
   const [likes, setLikes] = useState<string[]>(likesList);

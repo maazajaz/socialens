@@ -14,10 +14,9 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { useUpdatePost, useCreatePost } from "@/lib/react-query/queriesAndMutations";
-import { Models } from "appwrite";
 
 type PostFormNextJSProps = {
-  post?: Models.Document;
+  post?: any; // Post data from Supabase
   action: "Create" | "Update";
 };
 

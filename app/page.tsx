@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import App from '../src/App';
-import { BrowserRouter } from 'react-router-dom';
+import { QueryProvider } from '../src/lib/react-query/QueryProvider';
+import { AuthProvider } from '../src/context/SupabaseAuthContext';
+import Home from '../src/_root/pages/Home';
+import { Toaster } from '../src/components/ui/toaster';
 
 export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
@@ -15,10 +17,14 @@ export default function HomePage() {
     return <div>Loading...</div>;
   }
 
-  // Redirect all traffic to the React Router app
   return (
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <QueryProvider>
+      <AuthProvider>
+        <main className="flex h-screen">
+          <Home />
+        </main>
+        <Toaster />
+      </AuthProvider>
+    </QueryProvider>
   );
 }

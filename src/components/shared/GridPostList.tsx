@@ -3,7 +3,7 @@ import { useUserContext } from "@/context/SupabaseAuthContext";
 import PostStats from "./PostStats";
 
 type GridPostListProps = {
-  posts: any[]; // Updated to handle both Supabase and Appwrite post structures
+  posts: any[]; // Posts array from Supabase
   showUser?: boolean;
   showStats?: boolean;
 };

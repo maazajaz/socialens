@@ -261,7 +261,7 @@ export async function createPost(post: {
       console.log('Starting upload to storage...')
       try {
         // Simple direct upload without timeout wrapper for testing
-        const { data: uploadData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('posts')
           .upload(fileName, firstFile, {
             cacheControl: '3600',
@@ -449,7 +449,7 @@ export async function updatePost(postId: string, post: {
       const fileExt = firstFile.name.split('.').pop()
       const fileName = `${Date.now()}.${fileExt}`
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('posts')
         .upload(fileName, firstFile)
 
@@ -683,7 +683,7 @@ export async function uploadFile(file: File, bucket: string) {
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}.${fileExt}`
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(fileName, file)
 
