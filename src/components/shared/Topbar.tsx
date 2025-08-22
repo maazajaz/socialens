@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import { useSignOutAccount } from "@/lib/react-query/queriesAndMutations";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const Topbar = () => {
   const router = useRouter();
@@ -29,7 +30,8 @@ const Topbar = () => {
           />
         </Link>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <NotificationBell />
           <Button
             variant="ghost"
             className="shad-button_ghost"

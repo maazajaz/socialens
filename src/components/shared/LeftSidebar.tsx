@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useSignOutAccount } from "@/lib/react-query/queriesAndMutations";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "./Loader";
+import NotificationBell from "./NotificationBell";
 
 const LeftSidebar = () => {
   const router = useRouter();
@@ -52,17 +53,23 @@ const LeftSidebar = () => {
             <Loader />
           </div>
         ) : (
-          <Link href={`/profile/${user.id}`} className="flex gap-3 items-center">
-            <img
-              src={user.image_url || "/assets/icons/profile-placeholder.svg"}
-              alt="profile"
-              className="h-14 w-14 rounded-full"
-            />
-            <div className="flex flex-col">
-              <p className="body-bold">{user.name}</p>
-              <p className="small-regular text-light-3">@{user.username}</p>
+          <>
+            <Link href={`/profile/${user.id}`} className="flex gap-3 items-center">
+              <img
+                src={user.image_url || "/assets/icons/profile-placeholder.svg"}
+                alt="profile"
+                className="h-14 w-14 rounded-full"
+              />
+              <div className="flex flex-col">
+                <p className="body-bold">{user.name}</p>
+                <p className="small-regular text-light-3">@{user.username}</p>
+              </div>
+            </Link>
+            {/* Notification Bell in Sidebar */}
+            <div className="mt-4 flex justify-center">
+              <NotificationBell />
             </div>
-          </Link>
+          </>
         )}
 
         <ul className="flex flex-col gap-6">

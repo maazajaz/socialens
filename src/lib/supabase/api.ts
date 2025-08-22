@@ -335,6 +335,33 @@ export async function createPost(post: {
     }
 
     console.log('Post created successfully:', data)
+
+    // Notify all followers of the creator
+    try {
+      const followers = await getFollowers(post.userId);
+      console.log('Followers for notification:', followers);
+      if (followers && followers.length > 0) {
+        const notifications = followers.map((follower: any) => ({
+          type: 'new_post',
+          message: 'uploaded a new post',
+          user_id: post.userId,
+          target_user_id: follower.id,
+          post_id: data.id,
+          read: false,
+          created_at: new Date().toISOString(),
+        }));
+        const { error: notifError, data: notifData } = await supabase.from('notifications').insert(notifications);
+        if (notifError) {
+          console.error('Notification insert error:', notifError);
+        } else {
+          console.log('Notifications inserted:', notifData);
+        }
+      } else {
+        console.log('No followers to notify.');
+      }
+    } catch (notifyErr) {
+      console.error('Error creating notifications for followers:', notifyErr);
+    }
     return data
   } catch (error) {
     console.error('Error creating post:', error)
