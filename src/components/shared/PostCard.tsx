@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { useState } from "react";
 import { multiFormatDateString } from "@/lib/utils";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import PostStats from "./PostStats";
+import QuickComment from "./QuickComment";
 
 type PostCardProps = {
   post: any; // TODO: Add proper type from Supabase
@@ -9,8 +11,13 @@ type PostCardProps = {
 
 const PostCard = ({ post }: PostCardProps) => {
   const { user } = useUserContext();
+  const [showComments, setShowComments] = useState(false);
 
   if (!post.creator) return;
+
+  const handleCommentClick = () => {
+    setShowComments(!showComments);
+  };
 
   return (
     <div className="post-card">
@@ -74,7 +81,24 @@ const PostCard = ({ post }: PostCardProps) => {
         />
       </Link>
 
-      <PostStats post={post} userId={user?.id || ""} />
+      <PostStats 
+        post={post} 
+        userId={user?.id || ""} 
+        onCommentClick={handleCommentClick}
+      />
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="border-t border-dark-4 pt-2">
+          <QuickComment 
+            postId={post.id} 
+            onCommentAdded={() => {
+              // Optionally refresh post data or show success message
+              console.log('Comment added successfully!');
+            }} 
+          />
+        </div>
+      )}
     </div>
   );
 };
