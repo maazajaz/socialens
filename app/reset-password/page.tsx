@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -15,8 +15,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '../../src/hooks/use-toast';
 import { ResetPasswordValidation } from '../../src/lib/validation';
 import { updateUserPassword } from '../../src/lib/supabase/api';
+import { Toaster } from '../../src/components/ui/toaster';
 
 import type { z } from 'zod';
+
+// Create a query client for this page
+const queryClient = new QueryClient();
 
 const ResetPasswordContent = () => {
   const router = useRouter();
@@ -36,55 +40,75 @@ const ResetPasswordContent = () => {
   });
 
   useEffect(() => {
+    const handleAuthStateChange = () => {
+      supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state changed:', event, session);
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('Password recovery detected');
+          setIsSessionValid(true);
+          setIsCheckingSession(false);
+        } else if (session) {
+          console.log('Session exists, checking if it\'s a password recovery');
+          // Check if this is a password recovery session
+          setIsSessionValid(true);
+          setIsCheckingSession(false);
+        } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
+          setIsSessionValid(false);
+          setIsCheckingSession(false);
+        }
+      });
+    };
+
     const validateSession = async () => {
       try {
         console.log('Starting session validation...');
         console.log('Current URL:', window.location.href);
+        console.log('Search params:', window.location.search);
         console.log('Hash:', window.location.hash);
         
         // Check for existing session first
-        console.log('Checking for existing session...');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (session && !sessionError) {
-          console.log('Found existing valid session');
+          console.log('Found existing valid session:', session);
           setIsSessionValid(true);
           setIsCheckingSession(false);
           return;
         }
         
-        // Then check for tokens in URL hash (email link flow)
+        // Check URL parameters for error states
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const errorCode = urlParams.get('error_code');
+        const errorDescription = urlParams.get('error_description');
+        
+        if (error) {
+          console.log('Error in URL:', { error, errorCode, errorDescription });
+          toast({
+            title: "Reset link expired",
+            description: errorDescription || "Your password reset link has expired. Please request a new one.",
+            variant: "destructive",
+          });
+          router.push('/forgot-password');
+          return;
+        }
+        
+        // Check for hash tokens (email link flow)
         const hash = window.location.hash;
         if (hash && hash.length > 1) {
           console.log('Found hash in URL, processing tokens...');
-          // Remove the # and parse as URL params
           const hashParams = new URLSearchParams(hash.substring(1));
           const accessToken = hashParams.get('access_token');
           const refreshToken = hashParams.get('refresh_token');
-          const tokenType = hashParams.get('token_type');
-          const expiresIn = hashParams.get('expires_in');
-          
-          console.log('Token details:', { 
-            hasAccessToken: !!accessToken, 
-            hasRefreshToken: !!refreshToken, 
-            tokenType,
-            expiresIn 
-          });
           
           if (accessToken) {
             console.log('Setting session from URL tokens...');
-            const sessionData: any = {
+            const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
-              token_type: tokenType || 'bearer',
-              expires_in: parseInt(expiresIn || '3600'),
-              user: null
-            };
-            
-            if (refreshToken) {
-              sessionData.refresh_token = refreshToken;
-            }
-            
-            const { data, error } = await supabase.auth.setSession(sessionData);
+              refresh_token: refreshToken || ''
+            });
             
             if (!error && data.session) {
               console.log('Session set successfully!');
@@ -93,29 +117,25 @@ const ResetPasswordContent = () => {
               window.history.replaceState({}, document.title, window.location.pathname);
               setIsCheckingSession(false);
               return;
-            } else {
-              console.error('Error setting session:', error);
             }
           }
         }
         
         // No valid session found
-        console.log('No valid session found, redirecting to forgot password');
+        console.log('No valid session found');
         setIsSessionValid(false);
         
       } catch (error) {
         console.error('Session validation error:', error);
         setIsSessionValid(false);
       } finally {
-        console.log('Session validation complete');
         setIsCheckingSession(false);
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timer = setTimeout(validateSession, 500);
-    return () => clearTimeout(timer);
-  }, [supabase.auth]);
+    handleAuthStateChange();
+    validateSession();
+  }, [supabase.auth, toast, router]);
 
   const resetPasswordMutation = useMutation({
     mutationFn: updateUserPassword,
@@ -308,16 +328,19 @@ const ResetPasswordContent = () => {
 
 export default function ResetPassword() {
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Form */}
-      <section className="flex flex-1 justify-center items-center flex-col py-10">
-        <Suspense fallback={<div>Loading...</div>}>
-          <ResetPasswordContent />
-        </Suspense>
-      </section>
-      
-      {/* Right side - Image */}
-      <div className="hidden xl:block h-screen w-1/2 bg-no-repeat bg-cover bg-center bg-[url('/assets/images/side-img.svg')]" />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen flex">
+        {/* Left side - Form */}
+        <section className="flex flex-1 justify-center items-center flex-col py-10">
+          <Suspense fallback={<div>Loading...</div>}>
+            <ResetPasswordContent />
+          </Suspense>
+        </section>
+        
+        {/* Right side - Image */}
+        <div className="hidden xl:block h-screen w-1/2 bg-no-repeat bg-cover bg-center bg-[url('/assets/images/side-img.svg')]" />
+      </div>
+      <Toaster />
+    </QueryClientProvider>
   );
 }
