@@ -120,6 +120,13 @@ export const useGetRecentPosts = () => {
     return useQuery({
       queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
       queryFn: getRecentPosts,
+      staleTime: 1000 * 60 * 2, // 2 minutes
+      retry: (failureCount, error: any) => {
+        console.log('Recent posts query failed:', error);
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
     });
 };
 export const useLikePost = () => {
@@ -260,6 +267,12 @@ export const useGetPostById = (postId?: string) => {
     queryKey: [QUERY_KEYS.GET_POST_BY_ID, postId],
     queryFn: () => getPostById(postId!),
     enabled: !!postId,
+    staleTime: 1000 * 60 * 3, // 3 minutes
+    retry: (failureCount, error: any) => {
+      console.log('Get post by ID failed:', error);
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: true,
   });
 };
 export const useDeletePost = () => {
