@@ -11,9 +11,10 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -36,8 +37,9 @@
     ]
   },
   "include": [
+    ".next/types/**/*.ts",
     "src",
-    ".next/types/**/*.ts"
+    "out/types/**/*.ts"
   ],
   "references": [
     {
