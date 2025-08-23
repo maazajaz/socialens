@@ -52,29 +52,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(loadingTimeoutRef.current)
       }
       
-      // Set a timeout to force loading to false after 10 seconds (increased from 5)
-      // But only if we don't have a user session at all
-      loadingTimeoutRef.current = setTimeout(async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession()
-          
-          // Only force timeout if there's truly no session
-          if (!session?.user) {
-            console.warn('Auth loading timeout reached with no session, forcing loading to false')
-            setIsLoading(false)
-          } else {
-            console.log('Auth loading timeout reached but session exists, continuing auth check...')
-            // Give it more time since we have a session
-            loadingTimeoutRef.current = setTimeout(() => {
-              console.warn('Extended auth loading timeout reached, forcing loading to false')
-              setIsLoading(false)
-            }, 5000) // Additional 5 seconds
+      // Set a timeout to force loading to false after 8 seconds
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.warn('Auth loading timeout reached, forcing loading to false')
+        setIsLoading(false)
+        // Also ensure we try to recover the auth state
+        const recoverAuthState = async () => {
+          try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+              console.log('Timeout recovery: Session exists, updating state...')
+              setSupabaseUser(session.user)
+              const currentAccount = await getCurrentUser()
+              if (currentAccount) {
+                setUser(currentAccount)
+                setIsAuthenticated(true)
+                console.log('Timeout recovery: Auth state restored successfully')
+              }
+            }
+          } catch (error) {
+            console.error('Timeout recovery failed:', error)
           }
-        } catch (error) {
-          console.warn('Auth loading timeout reached with error, forcing loading to false', error)
-          setIsLoading(false)
         }
-      }, 10000) // Increased to 10 seconds
+        recoverAuthState()
+      }, 8000) // 8 second timeout
     } else {
       // Clear timeout when not loading
       if (loadingTimeoutRef.current) {
@@ -195,9 +196,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN') {
           if (session?.user) {
             setSupabaseUser(session.user)
-            // Use refs to get the current state values, not closure values
+            // Check if we actually have valid state (not just refs)
+            const hasValidState = user?.id && isAuthenticated
             const hasExistingUser = userRef.current?.id && isAuthenticatedRef.current
-            console.log('SIGNED_IN event - hasExistingUser:', hasExistingUser, {
+            console.log('SIGNED_IN event - state check:', {
+              hasValidState,
+              hasExistingUser,
               userId: userRef.current?.id,
               userName: userRef.current?.name,
               isAuthenticated: isAuthenticatedRef.current,
@@ -205,8 +209,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               stateIsAuthenticated: isAuthenticated
             })
             
-            if (hasExistingUser) {
-              console.log('Already authenticated, skipping loading state')
+            // Only skip loading if we have BOTH valid refs AND valid state
+            if (hasValidState && hasExistingUser) {
+              console.log('Already authenticated with valid state, skipping loading state')
               // Just silently refresh user data without loading state
               try {
                 const currentAccount = await getCurrentUser()
@@ -222,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.error('Silent auth refresh error:', error)
               }
             } else {
-              console.log('No existing user data, checking if user is already in localStorage')
+              console.log('State inconsistent, performing full auth check')
               // Check if we have cached user data first
               const cachedUser = typeof window !== 'undefined' ? localStorage.getItem('socialens_user') : null
               const cachedAuth = typeof window !== 'undefined' ? localStorage.getItem('socialens_auth') : null
