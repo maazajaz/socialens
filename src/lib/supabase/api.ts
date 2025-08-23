@@ -236,41 +236,62 @@ export async function getUserById(userId: string) {
   }
 }
 
-// Public version for unauthenticated access (shared profiles)
+// Public version for unauthenticated access (shared profiles) using API route
 export async function getPublicUserById(userId: string) {
+  console.log('🔍 getPublicUserById called with userId:', userId);
+  
   try {
-    // First try with basic select - might work if RLS allows public read
+    // First try direct database access
     const { data, error } = await supabase
       .from('users')
       .select('id, name, username, email, image_url, bio, created_at')
       .eq('id', userId)
       .single()
 
+    console.log('📊 Direct database query result:', { data, error });
+
     if (error) {
-      console.error('Public user query failed:', error)
-      // If RLS blocks this, we'll need to handle it gracefully
-      if (error.code === 'PGRST116' || error.code === '42501') {
-        console.log('User profile access restricted - returning limited info')
-        return {
-          id: userId,
-          name: 'User Profile',
-          username: 'private_user',
-          email: '',
-          image_url: null,
-          bio: 'This profile is private',
-          created_at: new Date().toISOString()
+      console.error('Direct user query failed:', error)
+      // If RLS blocks this, try the API route
+      if (error.code === 'PGRST116' || error.code === '42501' || error.message.includes('row-level security')) {
+        console.log('⚠️ RLS blocking direct access, trying API route...')
+        
+        try {
+          const response = await fetch(`/api/public/profile?userId=${userId}`)
+          const apiData = await response.json()
+          
+          if (response.ok && apiData.user) {
+            console.log('✅ Got user data from API route:', apiData.user)
+            return apiData.user
+          } else {
+            console.log('❌ API route failed:', apiData)
+          }
+        } catch (apiError) {
+          console.log('💥 API route error:', apiError)
         }
       }
-      return null
+      
+      // For other errors, return fallback
+      return {
+        id: userId,
+        name: 'User Profile',
+        username: 'user_profile',
+        email: '',
+        image_url: null,
+        bio: 'Profile information is currently unavailable',
+        created_at: new Date().toISOString()
+      }
     }
+    
+    console.log('✅ Successfully fetched user data directly:', data)
     return data
   } catch (error) {
-    console.error('Error getting public user:', error)
+    console.error('💥 Exception in getPublicUserById:', error)
     // Return basic fallback info instead of null
     return {
       id: userId,
       name: 'User Profile',
-      username: 'private_user', 
+      username: 'user_profile', 
       email: '',
       image_url: null,
       bio: 'This profile is currently unavailable',
@@ -279,8 +300,10 @@ export async function getPublicUserById(userId: string) {
   }
 }
 
-// Public version for getting user posts (shared profiles)
+// Public version for getting user posts (shared profiles) using API route fallback
 export async function getPublicUserPosts(userId: string) {
+  console.log('🔍 getPublicUserPosts called with userId:', userId);
+  
   try {
     const { data, error } = await supabase
       .from('posts')
@@ -302,14 +325,44 @@ export async function getPublicUserPosts(userId: string) {
       .eq('creator_id', userId)
       .order('created_at', { ascending: false })
 
+    console.log('📊 Direct posts query result:', { 
+      dataLength: data?.length || 0, 
+      error,
+      samplePost: data?.[0] ? { 
+        id: data[0].id, 
+        caption: data[0].caption?.substring(0, 50) + '...',
+        creator: data[0].creator 
+      } : null 
+    });
+
     if (error) {
-      console.error('Error getting public user posts:', error)
-      // If RLS blocks this, return empty array instead of crashing
+      console.error('Direct posts query failed:', error)
+      // If RLS blocks this, try the API route
+      if (error.code === 'PGRST116' || error.code === '42501' || error.message.includes('row-level security')) {
+        console.log('⚠️ RLS blocking direct posts access, trying API route...')
+        
+        try {
+          const response = await fetch(`/api/public/profile?userId=${userId}`)
+          const apiData = await response.json()
+          
+          if (response.ok && apiData.posts) {
+            console.log('✅ Got posts data from API route:', apiData.posts.length, 'posts')
+            return apiData.posts
+          } else {
+            console.log('❌ API route failed for posts:', apiData)
+          }
+        } catch (apiError) {
+          console.log('💥 API route error for posts:', apiError)
+        }
+      }
+      
       return []
     }
+    
+    console.log('✅ Successfully fetched', data?.length || 0, 'posts directly')
     return data || []
   } catch (error) {
-    console.error('Error getting public user posts:', error)
+    console.error('💥 Exception in getPublicUserPosts:', error)
     return []
   }
 }
