@@ -174,7 +174,7 @@ const NotificationBell = () => {
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="w-80 max-w-[calc(100vw-2rem)] bg-dark-2/95 backdrop-blur-lg border border-dark-4/50 rounded-2xl shadow-2xl z-50 overflow-hidden 
               fixed top-20 left-[15%] -translate-x-1/2
-              sm:absolute sm:top-full sm:mt-2 sm:left-auto sm:right-0 sm:translate-x-0"
+              sm:absolute sm:top-full sm:mt-2 sm:left-0 sm:right-auto sm:translate-x-0"
           >
             {/* Header */}
             <div className="p-4 border-b border-dark-4/50 bg-gradient-to-r from-dark-2 to-dark-3">

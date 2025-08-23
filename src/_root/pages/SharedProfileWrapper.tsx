@@ -268,7 +268,7 @@ const SharedProfileWrapper = ({ params }: SharedProfileWrapperProps) => {
             isPostsLoading ? (
               <Loader />
             ) : userPosts && userPosts.length > 0 ? (
-              <GridPostList posts={userPosts} showUser={false} showStats={!!user} />
+              <GridPostList posts={userPosts} showUser={false} showStats={true} />
             ) : (
               <p className="text-light-4 text-center w-full mt-10">
                 No posts yet

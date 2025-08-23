@@ -8,12 +8,14 @@ type GridPostListProps = {
   posts: any[]; // Posts array from Supabase
   showUser?: boolean;
   showStats?: boolean;
+  showComments?: boolean;
 };
 
 const GridPostList = ({
   posts,
   showUser = true,
   showStats = true,
+  showComments = true,
 }: GridPostListProps) => {
   const { user } = useUserContext();
 
@@ -43,7 +45,17 @@ const GridPostList = ({
                 <p className="line-clamp-1">{post.creator?.name}</p>
               </div>
             )}
-            {showStats && user && <PostStats post={post} userId={user.id} />}
+            {showStats && (
+              <PostStats 
+                post={post} 
+                userId={user?.id || ""} 
+                showComments={showComments}
+                onCommentClick={() => {
+                  // For grid view, navigate to post detail page for comments
+                  window.location.href = `/posts/${post.id || post.$id}`;
+                }}
+              />
+            )}
           </div>
         </li>
       ))}

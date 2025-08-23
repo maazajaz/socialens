@@ -226,7 +226,7 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
 
       <div className="w-full max-w-5xl mt-4">
         {activeTab === 'posts' ? (
-          <GridPostList posts={userPosts || []} showUser={false} />
+          <GridPostList posts={userPosts || []} showUser={false} showComments={false} />
         ) : (
           currentUser.id === user?.id && <LikedPosts />
         )}

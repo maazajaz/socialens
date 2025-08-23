@@ -16,9 +16,10 @@ type PostStatsProps = {
   post: any; // Updated from Models.Document to any for Supabase compatibility
   userId: string;
   onCommentClick?: () => void;
+  showComments?: boolean;
 };
 
-const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
+const PostStats = ({ post, userId, onCommentClick, showComments = true }: PostStatsProps) => {
   const pathname = usePathname();
   
   // Handle Supabase post structure
@@ -166,19 +167,21 @@ const PostStats = ({ post, userId, onCommentClick }: PostStatsProps) => {
           </div>
 
           {/* Comments Button */}
-          <div className="flex gap-2 items-center">
-            <img
-              src="/assets/icons/chat.svg"
-              alt="comment"
-              width={20}
-              height={20}
-              className="cursor-pointer"
-              onClick={onCommentClick}
-            />
-            <p className="small-medium lg:base-medium">
-              {post._count?.comments || 0}
-            </p>
-          </div>
+          {showComments && (
+            <div className="flex gap-2 items-center">
+              <img
+                src="/assets/icons/chat.svg"
+                alt="comment"
+                width={20}
+                height={20}
+                className="cursor-pointer"
+                onClick={onCommentClick}
+              />
+              <p className="small-medium lg:base-medium">
+                {post._count?.comments || 0}
+              </p>
+            </div>
+          )}
 
           {/* Share Button */}
           <div className="flex gap-2 items-center">
