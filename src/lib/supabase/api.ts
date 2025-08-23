@@ -1145,6 +1145,8 @@ export async function searchPosts(searchTerm: string) {
 
 export async function getInfinitePosts({ pageParam }: { pageParam?: string }) {
   try {
+    console.log('Fetching infinite posts with pageParam:', pageParam);
+    
     const pageSize = 10 // Number of posts per page
     
     let query = supabase
@@ -1169,12 +1171,19 @@ export async function getInfinitePosts({ pageParam }: { pageParam?: string }) {
       
       if (!paramError && paramPost) {
         query = query.lt('created_at', paramPost.created_at)
+      } else {
+        console.warn('Could not find post with pageParam:', pageParam, paramError);
       }
     }
     
     const { data, error } = await query
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error in getInfinitePosts:', error);
+      throw error;
+    }
+    
+    console.log('Infinite posts fetched:', data?.length || 0, 'posts');
     
     // Return in the format expected by react-query infinite queries
     return {

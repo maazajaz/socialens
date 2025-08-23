@@ -1,7 +1,7 @@
 "use client";
 import SharedPostTopbar from "../../../src/components/shared/SharedPostTopbar";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useGetPostById } from "../../../src/lib/react-query/queriesAndMutations";
 import { multiFormatDateString } from "../../../src/lib/utils";
@@ -19,7 +19,18 @@ interface PostDetailPageProps {
 const PostDetailPage = ({ params }: PostDetailPageProps) => {
   const router = useRouter();
   const { id } = use(params);
-  const { user } = useUserContext();
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useUserContext();
+
+  // Debug: Log authentication state for troubleshooting
+  useEffect(() => {
+    console.log('📝 POST DETAIL AUTH DEBUG:', {
+      user: user?.id || 'no-user',
+      isLoading: isAuthLoading,
+      isAuthenticated,
+      postId: id,
+      timestamp: new Date().toISOString()
+    });
+  }, [user, isAuthLoading, isAuthenticated, id]);
 
   const { data: post, isLoading } = useGetPostById(id);
 

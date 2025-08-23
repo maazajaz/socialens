@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/context/SupabaseAuthContext";
@@ -37,10 +37,21 @@ type ProfileWrapperProps = {
 };
 
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
-  const { user } = useUserContext();
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useUserContext();
   const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
   
   const id = params?.id;
+
+  // Debug: Log authentication state for troubleshooting
+  useEffect(() => {
+    console.log('👤 PROFILE AUTH DEBUG:', {
+      user: user?.id || 'no-user',
+      isLoading: isAuthLoading,
+      isAuthenticated,
+      profileId: id,
+      timestamp: new Date().toISOString()
+    });
+  }, [user, isAuthLoading, isAuthenticated, id]);
 
   const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
   const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");

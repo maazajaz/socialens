@@ -5,6 +5,7 @@ import { useInView } from "react-intersection-observer";
 
 import useDebounce from "@/hooks/useDebounce";
 import { useGetPosts, useSearchPosts } from "@/lib/react-query/queriesAndMutations";
+import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import { Input } from "@/components/ui";
@@ -28,7 +29,8 @@ const SearchResults = ({ isSearchFetching, searchedPosts }: SearchResultProps) =
 
 const Explore = () => {
   const { ref, inView } = useInView();
-  const { data: posts, fetchNextPage, hasNextPage } = useGetPosts();
+  const { data: posts, fetchNextPage, hasNextPage, isLoading, error, refetch } = useGetPosts();
+  const { user, isLoading: isUserLoading, isAuthenticated } = useUserContext();
 
   const [searchValue, setSearchValue] = useState("");
   const debouncedSearch = useDebounce(searchValue, 500);
@@ -40,12 +42,37 @@ const Explore = () => {
     }
   }, [inView, searchValue]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('=== EXPLORE PAGE DEBUG ===');
+    console.log('Auth state:', { user: user?.name || user, isLoading: isUserLoading, isAuthenticated });
+    console.log('Posts data:', posts);
+    console.log('Posts error:', error);
+    console.log('Posts isLoading:', isLoading);
+    console.log('==========================');
+  }, [posts, error, isLoading, user, isUserLoading, isAuthenticated]);
+
   if (!posts)
     return (
       <div className="flex-center w-full h-full">
         <Loader />
       </div>
     );
+
+  // Check if there's an error or no data
+  if (error || (posts && posts.pages.length === 0)) {
+    return (
+      <div className="flex-center flex-col w-full h-full gap-4">
+        <p className="text-light-4">Failed to load posts</p>
+        <button 
+          onClick={() => refetch()} 
+          className="shad-button_primary"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   const shouldShowSearchResults = searchValue !== "";
   const shouldShowEmptyMessage = !shouldShowSearchResults && 
@@ -78,14 +105,30 @@ const Explore = () => {
       <div className="flex-between w-full max-w-5xl mt-16 mb-7">
         <h3 className="body-bold md:h3-bold">Popular Today</h3>
 
-        <div className="flex-center gap-3 bg-dark-3 rounded-xl px-4 py-2 cursor-pointer">
-          <p className="small-medium md:base-medium text-light-2">All</p>
-          <img
-            src="/assets/icons/filter.svg"
-            width={20}
-            height={20}
-            alt="filter"
-          />
+        <div className="flex gap-3">
+          <button 
+            onClick={() => refetch()} 
+            className="flex-center gap-2 bg-dark-3 rounded-xl px-4 py-2 cursor-pointer hover:bg-dark-2"
+            title="Refresh posts"
+          >
+            <p className="small-medium md:base-medium text-light-2">Refresh</p>
+            <img
+              src="/assets/icons/loader.svg"
+              width={16}
+              height={16}
+              alt="refresh"
+              className="invert-white"
+            />
+          </button>
+          <div className="flex-center gap-3 bg-dark-3 rounded-xl px-4 py-2 cursor-pointer">
+            <p className="small-medium md:base-medium text-light-2">All</p>
+            <img
+              src="/assets/icons/filter.svg"
+              width={20}
+              height={20}
+              alt="filter"
+            />
+          </div>
         </div>
       </div>
 

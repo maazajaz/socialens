@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 // import { useToast } from "@/components/ui/use-toast";
 
 import { useGetRecentPosts, useGetUsers } from "@/lib/react-query/queriesAndMutations";
@@ -10,7 +12,17 @@ import UserCard from "@/components/shared/UserCard";
 
 const Home = () => {
   // const { toast } = useToast();
-  const { user } = useUserContext();
+  const { user, isLoading: isAuthLoading, isAuthenticated } = useUserContext();
+
+  // Debug: Log authentication state for troubleshooting
+  useEffect(() => {
+    console.log('🏠 HOME AUTH DEBUG:', {
+      user: user?.id || 'no-user',
+      isLoading: isAuthLoading,
+      isAuthenticated,
+      timestamp: new Date().toISOString()
+    });
+  }, [user, isAuthLoading, isAuthenticated]);
 
   const {
     data: posts,

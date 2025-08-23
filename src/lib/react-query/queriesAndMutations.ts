@@ -308,6 +308,17 @@ export const useGetPosts = () => {
       return lastPage.documents[lastPage.documents.length - 1].id;
     },
     initialPageParam: undefined,
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    retry: (failureCount, error: any) => {
+      console.log('Infinite posts query failed:', error);
+      // Don't retry on auth errors
+      if (error?.status === 401 || error?.message?.includes('session_missing')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 };
 
@@ -320,6 +331,12 @@ export const useSearchPosts = (searchTerm: string) => {
     queryKey: [QUERY_KEYS.SEARCH_POSTS, searchTerm],
     queryFn: () => searchPosts(searchTerm),
     enabled: !!searchTerm,
+    staleTime: 1000 * 60 * 1, // 1 minute for search results
+    retry: (failureCount, error: any) => {
+      console.log('Search posts query failed:', error);
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false, // Don't refetch searches on focus
   });
 };
 
