@@ -33,7 +33,6 @@ const Topbar = () => {
         <div className="flex gap-4 items-center">
           <NotificationBell />
           <Button
-            variant="ghost"
             className="shad-button_ghost"
             onClick={() => signOut()}>
             <img src="/assets/icons/logout.svg" alt="logout" />

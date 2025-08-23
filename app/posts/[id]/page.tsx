@@ -1,7 +1,7 @@
 "use client";
 import SharedPostTopbar from "../../../src/components/shared/SharedPostTopbar";
 
-import { use } from "react";
+// import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useGetPostById } from "../../../src/lib/react-query/queriesAndMutations";
 import { multiFormatDateString } from "../../../src/lib/utils";
@@ -13,13 +13,12 @@ import Comments from "../../../src/components/shared/Comments";
 import Link from "next/link";
 
 interface PostDetailPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 
 const PostDetailPage = ({ params }: PostDetailPageProps) => {
-  // ...existing code...
   const router = useRouter();
-  const { id } = use(params);
+  const { id } = params;
   const { user } = useUserContext();
 
   const { data: post, isLoading } = useGetPostById(id);
@@ -58,7 +57,6 @@ const PostDetailPage = ({ params }: PostDetailPageProps) => {
       <div className="hidden md:flex max-w-5xl w-full">
         <Button
           onClick={() => router.back()}
-          variant="ghost"
           className="shad-button_ghost">
           <img
             src={"/assets/icons/back.svg"}
@@ -120,7 +118,6 @@ const PostDetailPage = ({ params }: PostDetailPageProps) => {
 
               <Button
                 onClick={handleDeletePost}
-                variant="ghost"
                 className={`ghost_details-delete_btn ${
                   user?.id !== post.creator.id && "hidden"
                 }`}>
