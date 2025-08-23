@@ -13,6 +13,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Socialens',
   description: 'A social media application powered by Next.js and Supabase',
+  icons: {
+    icon: '/assets/images/tablogo.ico',
+  },
 }
 
 export default function RootLayout({
