@@ -26,5 +26,10 @@ export enum QUERY_KEYS {
     IS_FOLLOWING = "isFollowing",
     GET_FOLLOWERS = "getFollowers",
     GET_FOLLOWING = "getFollowing",
+    
+    // ADMIN KEYS
+    GET_ADMIN_STATS = "getAdminStats",
+    CHECK_ADMIN_ACCESS = "checkAdminAccess",
+    GET_ADMIN_USERS = "getAdminUsers",
   }
   

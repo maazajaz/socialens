@@ -36,6 +36,11 @@ import {
   isFollowing,
   getFollowers,
   getFollowing,
+  getAdminStats,
+  checkAdminAccess,
+  getAdminUsers,
+  addAdminUser,
+  removeAdminUser,
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
@@ -309,6 +314,60 @@ export const useGetUsers = (limit?: number) => {
   return useQuery({
     queryKey: [QUERY_KEYS.GET_USERS],
     queryFn: () => getUsers(limit),
+  });
+};
+
+export const useGetAdminStats = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ADMIN_STATS],
+    queryFn: getAdminStats,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useCheckAdminAccess = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.CHECK_ADMIN_ACCESS],
+    queryFn: checkAdminAccess,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useGetAdminUsers = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ADMIN_USERS],
+    queryFn: getAdminUsers,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useAddAdminUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (email: string) => addAdminUser(email),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USERS],
+      });
+    },
+  });
+};
+
+export const useRemoveAdminUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => removeAdminUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USERS],
+      });
+    },
   });
 };
 

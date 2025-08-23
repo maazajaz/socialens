@@ -172,13 +172,9 @@ const NotificationBell = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute w-80 max-w-[calc(100vw-2rem)] bg-dark-2/95 backdrop-blur-lg border border-dark-4/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
-            style={{
-              left: window.innerWidth <= 640 ? '50%' : '100%',
-              top: window.innerWidth <= 640 ? '100%' : 0,
-              transform: window.innerWidth <= 640 ? 'translate(-50%, 0.5rem)' : 'translateX(0.5rem)',
-              marginLeft: 0,
-            }}
+            className="w-80 max-w-[calc(100vw-2rem)] bg-dark-2/95 backdrop-blur-lg border border-dark-4/50 rounded-2xl shadow-2xl z-50 overflow-hidden 
+              fixed top-20 left-[15%] -translate-x-1/2
+              sm:absolute sm:top-full sm:mt-2 sm:left-auto sm:right-0 sm:translate-x-0"
           >
             {/* Header */}
             <div className="p-4 border-b border-dark-4/50 bg-gradient-to-r from-dark-2 to-dark-3">

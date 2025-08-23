@@ -116,6 +116,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
               <FormControl>
                 <Textarea
                   className="shad-textarea custom-scrollbar"
+                  style={{ height: '80px', minHeight: '80px' }}
                   {...field}
                 />
               </FormControl>
@@ -176,7 +177,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
           )}
         />
 
-        <div className="flex gap-4 items-center justify-end pt-6 pb-4">
+        <div className="flex gap-4 items-center justify-end pt-6 pb-8 mb-6">
           <Button
             type="button"
             className="shad-button_dark_4"

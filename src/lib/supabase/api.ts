@@ -318,6 +318,271 @@ export async function getUsers(limit?: number) {
 }
 
 // ============================================================
+// ADMIN STATISTICS
+// ============================================================
+
+// Initial admin emails - these will be the super admins who can add others
+const INITIAL_ADMIN_EMAILS = [
+  'admin@socialens.com',
+  'maazajaz1234@gmail.com', // Your email here
+  'test@admin.com',
+];
+
+// Check if user is an initial admin (super admin)
+export async function isInitialAdmin(userEmail?: string): Promise<boolean> {
+  if (!userEmail) return false;
+  return INITIAL_ADMIN_EMAILS.includes(userEmail.toLowerCase());
+}
+
+// Get all admin users from database
+export async function getAdminUsers(): Promise<User[]> {
+  try {
+    // First check if current user has admin access
+    const hasAccess = await checkAdminAccess();
+    if (!hasAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('is_admin', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting admin users:', error);
+    throw error;
+  }
+}
+
+// Check if user is admin (either initial admin or database admin)
+export async function isUserAdmin(userEmail?: string): Promise<boolean> {
+  if (!userEmail) return false;
+  
+  // Check if initial admin first
+  if (INITIAL_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+    return true;
+  }
+
+  // Check database for admin status
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('is_admin')
+      .eq('email', userEmail.toLowerCase())
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+
+    return data?.is_admin === true;
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+}
+
+// Add a new admin user
+export async function addAdminUser(email: string): Promise<boolean> {
+  try {
+    console.log('addAdminUser: Starting process for email:', email);
+    
+    // Check if current user has admin access
+    const hasAccess = await checkAdminAccess();
+    console.log('addAdminUser: Admin access check result:', hasAccess);
+    if (!hasAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    // Check if user exists in the system
+    console.log('addAdminUser: Searching for user with email:', email.toLowerCase());
+    const { data: existingUser, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    console.log('addAdminUser: User search result:', { existingUser, userError });
+
+    if (userError && userError.code !== 'PGRST116') {
+      throw userError;
+    }
+
+    if (!existingUser) {
+      throw new Error('User with this email does not exist in the system. They must sign up first.');
+    }
+
+    if (existingUser.is_admin) {
+      throw new Error('User is already an admin.');
+    }
+
+    console.log('addAdminUser: Updating user to admin status, user ID:', existingUser.id);
+    // Update user to admin status
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ is_admin: true })
+      .eq('id', existingUser.id);
+
+    if (updateError) {
+      console.error('addAdminUser: Update error:', updateError);
+      throw updateError;
+    }
+
+    console.log('addAdminUser: Successfully added admin user');
+    return true;
+  } catch (error) {
+    console.error('Error adding admin user:', error);
+    throw error;
+  }
+}
+
+// Remove admin privileges from a user
+export async function removeAdminUser(userId: string): Promise<boolean> {
+  try {
+    console.log('removeAdminUser: Starting process for userId:', userId);
+    
+    // Check if current user has admin access
+    const hasAccess = await checkAdminAccess();
+    console.log('removeAdminUser: Admin access check result:', hasAccess);
+    if (!hasAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    // Get current user to prevent self-removal
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log('removeAdminUser: Current user ID:', user?.id);
+    if (user?.id === userId) {
+      throw new Error('Cannot remove admin privileges from yourself.');
+    }
+
+    // Check if user is initial admin (cannot remove initial admins)
+    const { data: targetUser, error: userError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    console.log('removeAdminUser: Target user:', { targetUser, userError });
+
+    if (userError) throw userError;
+
+    if (INITIAL_ADMIN_EMAILS.includes(targetUser.email.toLowerCase())) {
+      throw new Error('Cannot remove initial admin privileges.');
+    }
+
+    console.log('removeAdminUser: Updating user to remove admin status');
+    // Update user to remove admin status
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ is_admin: false })
+      .eq('id', userId);
+
+    console.log('removeAdminUser: Update result:', { updateError });
+
+    if (updateError) throw updateError;
+
+    console.log('removeAdminUser: Successfully removed admin user');
+    return true;
+  } catch (error) {
+    console.error('Error removing admin user:', error);
+    throw error;
+  }
+}
+
+export async function checkAdminAccess(): Promise<boolean> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return false;
+    
+    return await isUserAdmin(user.email);
+  } catch (error) {
+    console.error('Error checking admin access:', error);
+    return false;
+  }
+}
+
+export async function getAdminStats() {
+  try {
+    // Check admin access first
+    const hasAdminAccess = await checkAdminAccess();
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    // Get total users count
+    const { count: totalUsers, error: usersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+
+    if (usersError) throw usersError
+
+    // Get total posts count
+    const { count: totalPosts, error: postsError } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+
+    if (postsError) throw postsError
+
+    // Get users active today (logged in today)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayISO = today.toISOString()
+
+    const { count: activeToday, error: activeTodayError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .gte('last_sign_in_at', todayISO)
+
+    // Don't throw error for activeToday - it's optional
+    if (activeTodayError) {
+      console.warn('Error getting active users today:', activeTodayError)
+    }
+
+    // Get total likes count
+    const { count: totalLikes, error: likesError } = await supabase
+      .from('likes')
+      .select('*', { count: 'exact', head: true })
+
+    if (likesError) throw likesError
+
+    // Get total comments count
+    const { count: totalComments, error: commentsError } = await supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+
+    if (commentsError) throw commentsError
+
+    // Get recent user registrations (last 7 days)
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const sevenDaysAgoISO = sevenDaysAgo.toISOString()
+
+    const { count: newUsers, error: newUsersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgoISO)
+
+    if (newUsersError) throw newUsersError
+
+    return {
+      totalUsers: totalUsers || 0,
+      totalPosts: totalPosts || 0,
+      activeToday: activeToday || 0,
+      totalLikes: totalLikes || 0,
+      totalComments: totalComments || 0,
+      newUsersThisWeek: newUsers || 0
+    }
+  } catch (error) {
+    console.error('Error getting admin stats:', error)
+    throw error
+  }
+}
+
+// ============================================================
 // POSTS
 // ============================================================
 

@@ -24,6 +24,11 @@ export const sidebarLinks = [
       route: "/create-post",
       label: "Create Post",
     },
+    {
+      imgURL: "/assets/icons/filter.svg",
+      route: "/admin",
+      label: "Admin",
+    },
   ];
   
   export const INITIAL_USER = {

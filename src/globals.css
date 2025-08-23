@@ -294,3 +294,44 @@
     @apply flex gap-4 items-center justify-start hover:bg-transparent hover:text-white !important;
   }
 }
+
+/* ADMIN DASHBOARD STYLES */
+.admin-container {
+  @apply flex flex-col flex-1 items-center gap-10 py-10 px-5 md:px-8 lg:p-14;
+}
+
+.stat-card {
+  @apply glassmorphism border border-dark-4 rounded-xl p-6 hover:scale-105 transition-transform duration-200;
+}
+
+.stat-icon-wrapper {
+  @apply w-12 h-12 rounded-lg flex items-center justify-center;
+}
+
+.stat-number {
+  @apply text-2xl font-bold text-light-1;
+}
+
+.stat-label {
+  @apply text-sm text-light-3 font-medium;
+}
+
+/* Glassmorphism effect for admin cards */
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mobile-bottom-spacing {
+  margin-bottom: 100px !important;
+  padding-bottom: 100px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-spacing {
+    margin-bottom: 20px !important;
+    padding-bottom: 20px !important;
+  }
+}

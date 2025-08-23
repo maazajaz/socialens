@@ -117,7 +117,7 @@ const UpdateProfile = () => {
 
   return (
     <div className="flex flex-1">
-      <div className="common-container">
+      <div className="common-container md:pt-12">
         <div className="flex-start gap-3 justify-start w-full max-w-5xl">
           <img
             src="/assets/icons/edit.svg"
@@ -218,7 +218,7 @@ const UpdateProfile = () => {
               )}
             />
 
-            <div className="flex gap-4 items-center justify-end">
+            <div className="flex gap-4 items-center justify-end mobile-bottom-spacing">
               <Button
                 type="button"
                 className="shad-button_dark_4"

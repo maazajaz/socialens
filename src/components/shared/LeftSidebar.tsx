@@ -9,7 +9,7 @@ import { sidebarLinks } from "@/constants";
 import { INITIAL_USER } from "@/constants";
 
 import { Button } from "@/components/ui/button";
-import { useSignOutAccount } from "@/lib/react-query/queriesAndMutations";
+import { useSignOutAccount, useCheckAdminAccess } from "@/lib/react-query/queriesAndMutations";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "./Loader";
 import NotificationBell from "./NotificationBell";
@@ -18,6 +18,7 @@ const LeftSidebar = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { user, setUser, setIsAuthenticated, isLoading } = useUserContext();
+  const { data: hasAdminAccess } = useCheckAdminAccess();
   
   // Debug logging
   useEffect(() => {
@@ -35,6 +36,16 @@ const LeftSidebar = () => {
     setUser(INITIAL_USER);
     router.push("/sign-in");
   };
+
+  // Filter sidebar links based on admin access
+  const filteredSidebarLinks = sidebarLinks.filter((link) => {
+    // Show admin link only if user has admin access
+    if (link.route === "/admin") {
+      return hasAdminAccess === true;
+    }
+    // Show all other links
+    return true;
+  });
 
   return (
     <nav className="leftsidebar">
@@ -73,7 +84,7 @@ const LeftSidebar = () => {
         )}
 
         <ul className="flex flex-col gap-6">
-          {sidebarLinks.map((link: INavLink) => {
+          {filteredSidebarLinks.map((link: INavLink) => {
             const isActive = pathname === link.route;
 
             return (
