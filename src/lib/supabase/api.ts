@@ -3,6 +3,7 @@
 import { createClient } from './client'
 import { Database } from './database.types'
 import { NotificationService } from '../utils/notificationService'
+import { getAppUrl } from '../config'
 
 export type User = Database['public']['Tables']['users']['Row']
 export type Post = Database['public']['Tables']['posts']['Row'] & {
@@ -1839,16 +1840,16 @@ export async function sendPasswordResetOTP(email: string) {
       throw new Error('No account found with this email address')
     }
 
-    // Send OTP for password reset
+    // Send password reset email with link
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${getAppUrl()}/reset-password`
     })
 
     if (error) throw error
     
-    return { success: true, message: 'OTP sent to your email' }
+    return { success: true, message: 'Password reset link sent to your email' }
   } catch (error: any) {
-    console.error('Error sending password reset OTP:', error)
+    console.error('Error sending password reset email:', error)
     throw error
   }
 }
