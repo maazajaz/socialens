@@ -5,7 +5,6 @@ import { useInView } from "react-intersection-observer";
 
 import useDebounce from "@/hooks/useDebounce";
 import { useGetPosts, useSearchPosts } from "@/lib/react-query/queriesAndMutations";
-import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import { Input } from "@/components/ui";
@@ -29,8 +28,7 @@ const SearchResults = ({ isSearchFetching, searchedPosts }: SearchResultProps) =
 
 const Explore = () => {
   const { ref, inView } = useInView();
-  const { data: posts, fetchNextPage, hasNextPage, isLoading, error, refetch } = useGetPosts();
-  const { user, isLoading: isUserLoading, isAuthenticated } = useUserContext();
+  const { data: posts, fetchNextPage, hasNextPage, error, refetch } = useGetPosts();
 
   const [searchValue, setSearchValue] = useState("");
   const debouncedSearch = useDebounce(searchValue, 500);
@@ -41,31 +39,6 @@ const Explore = () => {
       fetchNextPage();
     }
   }, [inView, searchValue]);
-
-  // Debug: Log data fetching states for troubleshooting  
-  useEffect(() => {
-    console.log('🔍 EXPLORE DATA DEBUG:', {
-      posts: posts?.pages?.length || 'no-pages',
-      totalPosts: posts?.pages?.reduce((total, page) => total + (page?.documents?.length || 0), 0) || 'no-total',
-      hasNextPage,
-      isLoading,
-      error: error?.message || 'no-error',
-      searchValue,
-      searchedPosts: searchedPosts?.length || 'no-search-posts',
-      isSearchFetching,
-      timestamp: new Date().toISOString()
-    });
-  }, [posts, hasNextPage, isLoading, error, searchValue, searchedPosts, isSearchFetching]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log('=== EXPLORE PAGE DEBUG ===');
-    console.log('Auth state:', { user: user?.name || user, isLoading: isUserLoading, isAuthenticated });
-    console.log('Posts data:', posts);
-    console.log('Posts error:', error);
-    console.log('Posts isLoading:', isLoading);
-    console.log('==========================');
-  }, [posts, error, isLoading, user, isUserLoading, isAuthenticated]);
 
   if (!posts)
     return (

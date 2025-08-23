@@ -1,9 +1,9 @@
 "use client";
 import SharedPostTopbar from "../../../src/components/shared/SharedPostTopbar";
 
-import { use, useEffect } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
-import { useGetPostById } from "../../../src/lib/react-query/queriesAndMutations";
+import { useGetPostById, useGetPublicPostById } from "../../../src/lib/react-query/queriesAndMutations";
 import { multiFormatDateString } from "../../../src/lib/utils";
 import { useUserContext } from "../../../src/context/SupabaseAuthContext";
 import { Button } from "../../../src/components/ui";
@@ -19,20 +19,13 @@ interface PostDetailPageProps {
 const PostDetailPage = ({ params }: PostDetailPageProps) => {
   const router = useRouter();
   const { id } = use(params);
-  const { user, isLoading: isAuthLoading, isAuthenticated } = useUserContext();
+  const { user } = useUserContext();
 
-  // Debug: Log authentication state for troubleshooting
-  useEffect(() => {
-    console.log('📝 POST DETAIL AUTH DEBUG:', {
-      user: user?.id || 'no-user',
-      isLoading: isAuthLoading,
-      isAuthenticated,
-      postId: id,
-      timestamp: new Date().toISOString()
-    });
-  }, [user, isAuthLoading, isAuthenticated, id]);
-
-  const { data: post, isLoading } = useGetPostById(id);
+  const { data: authenticatedPost, isLoading: isAuthPostLoading } = useGetPostById(user ? id : "");
+  const { data: publicPost, isLoading: isPublicPostLoading } = useGetPublicPostById(!user ? id : "");
+  
+  const post = user ? authenticatedPost : publicPost;
+  const isLoading = user ? isAuthPostLoading : isPublicPostLoading;
 
   const handleDeletePost = () => {
     if (id) {
@@ -116,29 +109,29 @@ const PostDetailPage = ({ params }: PostDetailPageProps) => {
             </Link>
 
             <div className="flex-center gap-4">
-              <Link
-                href={`/update-post/${post.id}`}
-                className={`${user?.id !== post.creator.id && "hidden"}`}>
-                <img
-                  src={"/assets/icons/edit.svg"}
-                  alt="edit"
-                  width={24}
-                  height={24}
-                />
-              </Link>
+              {user && user.id === post.creator.id && (
+                <>
+                  <Link href={`/update-post/${post.id}`}>
+                    <img
+                      src={"/assets/icons/edit.svg"}
+                      alt="edit"
+                      width={24}
+                      height={24}
+                    />
+                  </Link>
 
-              <Button
-                onClick={handleDeletePost}
-                className={`ghost_details-delete_btn ${
-                  user?.id !== post.creator.id && "hidden"
-                }`}>
-                <img
-                  src={"/assets/icons/delete.svg"}
-                  alt="delete"
-                  width={24}
-                  height={24}
-                />
-              </Button>
+                  <Button
+                    onClick={handleDeletePost}
+                    className="ghost_details-delete_btn">
+                    <img
+                      src={"/assets/icons/delete.svg"}
+                      alt="delete"
+                      width={24}
+                      height={24}
+                    />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 

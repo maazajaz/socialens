@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/context/SupabaseAuthContext";
@@ -37,44 +37,17 @@ type ProfileWrapperProps = {
 };
 
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
-  const { user, isLoading: isAuthLoading, isAuthenticated } = useUserContext();
+  const { user } = useUserContext();
   const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
   
   const id = params?.id;
 
-  // Debug: Log authentication state for troubleshooting
-  useEffect(() => {
-    console.log('👤 PROFILE AUTH DEBUG:', {
-      user: user?.id || 'no-user',
-      isLoading: isAuthLoading,
-      isAuthenticated,
-      profileId: id,
-      timestamp: new Date().toISOString()
-    });
-  }, [user, isAuthLoading, isAuthenticated, id]);
-
   const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
-  const { data: userPosts, isPending: isPostsLoading, error: postsError } = useGetUserPosts(id || "");
+  const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");
   
   const { data: followersCount, isLoading: followersLoading } = useGetFollowersCount(id || "");
   const { data: followingCount, isLoading: followingLoading } = useGetFollowingCount(id || "");
   const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(id || "");
-
-  // Debug: Log data fetching states for troubleshooting
-  useEffect(() => {
-    console.log('👤 PROFILE DATA DEBUG:', {
-      profileId: id,
-      currentUser: currentUser?.id || 'no-current-user',
-      userPosts: userPosts?.length || 'no-posts',
-      isUserLoading,
-      isPostsLoading,
-      userError: userError?.message || 'no-user-error',
-      postsError: postsError?.message || 'no-posts-error',
-      followersCount,
-      followingCount,
-      timestamp: new Date().toISOString()
-    });
-  }, [id, currentUser, userPosts, isUserLoading, isPostsLoading, userError, postsError, followersCount, followingCount]);
   
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();

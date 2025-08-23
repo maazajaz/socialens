@@ -199,19 +199,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Check if we actually have valid state (not just refs)
             const hasValidState = user?.id && isAuthenticated
             const hasExistingUser = userRef.current?.id && isAuthenticatedRef.current
-            console.log('SIGNED_IN event - state check:', {
-              hasValidState,
-              hasExistingUser,
-              userId: userRef.current?.id,
-              userName: userRef.current?.name,
-              isAuthenticated: isAuthenticatedRef.current,
-              stateUserId: user?.id,
-              stateIsAuthenticated: isAuthenticated
-            })
             
             // Only skip loading if we have BOTH valid refs AND valid state
             if (hasValidState && hasExistingUser) {
-              console.log('Already authenticated with valid state, skipping loading state')
               // Just silently refresh user data without loading state
               try {
                 const currentAccount = await getCurrentUser()
@@ -227,7 +217,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.error('Silent auth refresh error:', error)
               }
             } else {
-              console.log('State inconsistent, performing full auth check')
               // Check if we have cached user data first
               const cachedUser = typeof window !== 'undefined' ? localStorage.getItem('socialens_user') : null
               const cachedAuth = typeof window !== 'undefined' ? localStorage.getItem('socialens_auth') : null
@@ -235,7 +224,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (cachedUser && cachedAuth === 'true') {
                 try {
                   const userData = JSON.parse(cachedUser)
-                  console.log('Found cached user data, using it:', userData.name)
                   setUser(userData)
                   setIsAuthenticated(true)
                   setIsLoading(false) // Important: Don't trigger loading state

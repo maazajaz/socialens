@@ -14,7 +14,11 @@ import {
   useGetFollowingCount,
   useIsFollowing,
   useFollowUser,
-  useUnfollowUser
+  useUnfollowUser,
+  useGetPublicUserById,
+  useGetPublicUserPosts,
+  useGetPublicFollowersCount,
+  useGetPublicFollowingCount
 } from "@/lib/react-query/queriesAndMutations";
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
@@ -51,12 +55,34 @@ const SharedProfileWrapper = ({ params }: SharedProfileWrapperProps) => {
     setIsMounted(true);
   }, []);
 
-  const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
-  const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");
+  // Use public hooks for unauthenticated users, authenticated hooks for authenticated users
+  const { data: authenticatedUser, isPending: isAuthUserLoading, error: authUserError } = useGetUserById(user ? (id || "") : "");
+  const { data: publicUser, isPending: isPublicUserLoading, error: publicUserError } = useGetPublicUserById(!user ? (id || "") : "");
   
-  const { data: followersCount } = useGetFollowersCount(id || "");
-  const { data: followingCount } = useGetFollowingCount(id || "");
-  const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(id || "");
+  const { data: authenticatedUserPosts, isPending: isAuthPostsLoading } = useGetUserPosts(user ? (id || "") : "");
+  const { data: publicUserPosts, isPending: isPublicPostsLoading } = useGetPublicUserPosts(!user ? (id || "") : "");
+  
+  const { data: authenticatedFollowersCount } = useGetFollowersCount(user ? (id || "") : "");
+  const { data: publicFollowersCount } = useGetPublicFollowersCount(!user ? (id || "") : "");
+  
+  const { data: authenticatedFollowingCount } = useGetFollowingCount(user ? (id || "") : "");
+  const { data: publicFollowingCount } = useGetPublicFollowingCount(!user ? (id || "") : "");
+  
+  // Combine the results
+  const currentUser = user ? authenticatedUser : publicUser;
+  const isUserLoading = user ? isAuthUserLoading : isPublicUserLoading;
+  const userError = user ? authUserError : publicUserError;
+  
+  const userPosts = user ? authenticatedUserPosts : publicUserPosts;
+  const isPostsLoading = user ? isAuthPostsLoading : isPublicPostsLoading;
+  
+  const followersCount = user ? authenticatedFollowersCount : publicFollowersCount;
+  const followingCount = user ? authenticatedFollowingCount : publicFollowingCount;
+  
+  // Only check following status if user is authenticated
+  const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(
+    user && id ? id : ""
+  );
   
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();

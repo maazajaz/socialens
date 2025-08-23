@@ -236,6 +236,160 @@ export async function getUserById(userId: string) {
   }
 }
 
+// Public version for unauthenticated access (shared profiles)
+export async function getPublicUserById(userId: string) {
+  try {
+    // First try with basic select - might work if RLS allows public read
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, username, email, image_url, bio, created_at')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Public user query failed:', error)
+      // If RLS blocks this, we'll need to handle it gracefully
+      if (error.code === 'PGRST116' || error.code === '42501') {
+        console.log('User profile access restricted - returning limited info')
+        return {
+          id: userId,
+          name: 'User Profile',
+          username: 'private_user',
+          email: '',
+          image_url: null,
+          bio: 'This profile is private',
+          created_at: new Date().toISOString()
+        }
+      }
+      return null
+    }
+    return data
+  } catch (error) {
+    console.error('Error getting public user:', error)
+    // Return basic fallback info instead of null
+    return {
+      id: userId,
+      name: 'User Profile',
+      username: 'private_user', 
+      email: '',
+      image_url: null,
+      bio: 'This profile is currently unavailable',
+      created_at: new Date().toISOString()
+    }
+  }
+}
+
+// Public version for getting user posts (shared profiles)
+export async function getPublicUserPosts(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        creator:users!posts_creator_id_fkey (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:likes!likes_post_id_fkey (
+          user_id
+        ),
+        saves:saves!saves_post_id_fkey (
+          user_id
+        )
+      `)
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error getting public user posts:', error)
+      // If RLS blocks this, return empty array instead of crashing
+      return []
+    }
+    return data || []
+  } catch (error) {
+    console.error('Error getting public user posts:', error)
+    return []
+  }
+}
+
+// Public version for getting followers count
+export async function getPublicFollowersCount(userId: string) {
+  try {
+    const { count, error } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', userId)
+
+    if (error) {
+      console.error('Error getting public followers count:', error)
+      return 0
+    }
+    return count || 0
+  } catch (error) {
+    console.error('Error getting public followers count:', error)
+    return 0
+  }
+}
+
+// Public version for getting following count
+export async function getPublicFollowingCount(userId: string) {
+  try {
+    const { count, error } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', userId)
+
+    if (error) {
+      console.error('Error getting public following count:', error)
+      return 0
+    }
+    return count || 0
+  } catch (error) {
+    console.error('Error getting public following count:', error)
+    return 0
+  }
+}
+
+// Public version for getting post details (shared posts)
+export async function getPublicPostById(postId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        creator:users!posts_creator_id_fkey (
+          id,
+          name,
+          username,
+          image_url
+        ),
+        likes:likes!likes_post_id_fkey (
+          user_id
+        ),
+        saves:saves!saves_post_id_fkey (
+          user_id
+        )
+      `)
+      .eq('id', postId)
+      .single()
+
+    if (error) {
+      console.error('Error getting public post:', error)
+      // If RLS blocks this, we might need to handle it differently
+      if (error.code === 'PGRST116' || error.code === '42501') {
+        console.log('Post access restricted for unauthenticated user')
+      }
+      return null
+    }
+    return data
+  } catch (error) {
+    console.error('Error getting public post:', error)
+    return null
+  }
+}
+
 export async function updateUser(userId: string, userData: any) {
   try {
     let imageUrl = userData.imageUrl;
@@ -1182,8 +1336,6 @@ export async function getInfinitePosts({ pageParam }: { pageParam?: string }) {
       console.error('Supabase error in getInfinitePosts:', error);
       throw error;
     }
-    
-    console.log('Infinite posts fetched:', data?.length || 0, 'posts');
     
     // Return in the format expected by react-query infinite queries
     return {

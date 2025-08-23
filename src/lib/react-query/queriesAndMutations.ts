@@ -28,6 +28,11 @@ import {
   deletePost,
   getUsers,
   searchPosts,
+  getPublicUserById,
+  getPublicUserPosts,
+  getPublicFollowersCount,
+  getPublicFollowingCount,
+  getPublicPostById,
   getInfinitePosts,
   followUser,
   unfollowUser,
@@ -422,6 +427,52 @@ export const useGetUserById = (userId: string) => {
     queryKey: [QUERY_KEYS.GET_USER_BY_ID, userId],
     queryFn: () => getUserById(userId),
     enabled: !!userId,
+  });
+};
+
+// Public hooks for unauthenticated access
+export const useGetPublicUserById = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_BY_ID, 'public', userId],
+    queryFn: () => getPublicUserById(userId),
+    enabled: !!userId,
+    retry: 1, // Reduce retries for faster failure
+  });
+};
+
+export const useGetPublicUserPosts = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_POSTS, 'public', userId],
+    queryFn: () => getPublicUserPosts(userId),
+    enabled: !!userId,
+    retry: 1,
+  });
+};
+
+export const useGetPublicFollowersCount = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_FOLLOWERS_COUNT, 'public', userId],
+    queryFn: () => getPublicFollowersCount(userId),
+    enabled: !!userId,
+    retry: 1,
+  });
+};
+
+export const useGetPublicFollowingCount = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_FOLLOWING_COUNT, 'public', userId],
+    queryFn: () => getPublicFollowingCount(userId),
+    enabled: !!userId,
+    retry: 1,
+  });
+};
+
+export const useGetPublicPostById = (postId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_POST_BY_ID, 'public', postId],
+    queryFn: () => getPublicPostById(postId),
+    enabled: !!postId,
+    retry: 1,
   });
 };
 export const useUpdateUser = () => {
