@@ -42,6 +42,21 @@ const Explore = () => {
     }
   }, [inView, searchValue]);
 
+  // Debug: Log data fetching states for troubleshooting  
+  useEffect(() => {
+    console.log('🔍 EXPLORE DATA DEBUG:', {
+      posts: posts?.pages?.length || 'no-pages',
+      totalPosts: posts?.pages?.reduce((total, page) => total + (page?.documents?.length || 0), 0) || 'no-total',
+      hasNextPage,
+      isLoading,
+      error: error?.message || 'no-error',
+      searchValue,
+      searchedPosts: searchedPosts?.length || 'no-search-posts',
+      isSearchFetching,
+      timestamp: new Date().toISOString()
+    });
+  }, [posts, hasNextPage, isLoading, error, searchValue, searchedPosts, isSearchFetching]);
+
   // Debug logging
   useEffect(() => {
     console.log('=== EXPLORE PAGE DEBUG ===');

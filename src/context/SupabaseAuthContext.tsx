@@ -52,11 +52,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(loadingTimeoutRef.current)
       }
       
-      // Set a timeout to force loading to false after 5 seconds
-      loadingTimeoutRef.current = setTimeout(() => {
-        console.warn('Auth loading timeout reached, forcing loading to false')
-        setIsLoading(false)
-      }, 5000) // 5 second timeout instead of 10
+      // Set a timeout to force loading to false after 10 seconds (increased from 5)
+      // But only if we don't have a user session at all
+      loadingTimeoutRef.current = setTimeout(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          
+          // Only force timeout if there's truly no session
+          if (!session?.user) {
+            console.warn('Auth loading timeout reached with no session, forcing loading to false')
+            setIsLoading(false)
+          } else {
+            console.log('Auth loading timeout reached but session exists, continuing auth check...')
+            // Give it more time since we have a session
+            loadingTimeoutRef.current = setTimeout(() => {
+              console.warn('Extended auth loading timeout reached, forcing loading to false')
+              setIsLoading(false)
+            }, 5000) // Additional 5 seconds
+          }
+        } catch (error) {
+          console.warn('Auth loading timeout reached with error, forcing loading to false', error)
+          setIsLoading(false)
+        }
+      }, 10000) // Increased to 10 seconds
     } else {
       // Clear timeout when not loading
       if (loadingTimeoutRef.current) {

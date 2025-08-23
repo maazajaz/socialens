@@ -28,12 +28,29 @@ const Home = () => {
     data: posts,
     isPending: isPostLoading,
     isError: isErrorPosts,
+    error: postsError,
   } = useGetRecentPosts();
   const {
     data: creators,
     isPending: isUserLoading,
     isError: isErrorCreators,
+    error: creatorsError,
   } = useGetUsers(10);
+
+  // Debug: Log data fetching states for troubleshooting
+  useEffect(() => {
+    console.log('🏠 HOME DATA DEBUG:', {
+      posts: posts?.length || 'no-posts',
+      creators: creators?.length || 'no-creators',
+      isPostLoading,
+      isUserLoading,
+      isErrorPosts,
+      isErrorCreators,
+      postsError: postsError?.message || 'no-posts-error',
+      creatorsError: creatorsError?.message || 'no-creators-error',
+      timestamp: new Date().toISOString()
+    });
+  }, [posts, creators, isPostLoading, isUserLoading, isErrorPosts, isErrorCreators, postsError, creatorsError]);
 
   // Filter out current user from creators list
   const otherUsers = creators?.filter((creator: any) => creator.id !== user?.id) || [];

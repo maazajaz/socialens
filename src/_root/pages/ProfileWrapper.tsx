@@ -54,11 +54,27 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   }, [user, isAuthLoading, isAuthenticated, id]);
 
   const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
-  const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");
+  const { data: userPosts, isPending: isPostsLoading, error: postsError } = useGetUserPosts(id || "");
   
   const { data: followersCount, isLoading: followersLoading } = useGetFollowersCount(id || "");
   const { data: followingCount, isLoading: followingLoading } = useGetFollowingCount(id || "");
   const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(id || "");
+
+  // Debug: Log data fetching states for troubleshooting
+  useEffect(() => {
+    console.log('👤 PROFILE DATA DEBUG:', {
+      profileId: id,
+      currentUser: currentUser?.id || 'no-current-user',
+      userPosts: userPosts?.length || 'no-posts',
+      isUserLoading,
+      isPostsLoading,
+      userError: userError?.message || 'no-user-error',
+      postsError: postsError?.message || 'no-posts-error',
+      followersCount,
+      followingCount,
+      timestamp: new Date().toISOString()
+    });
+  }, [id, currentUser, userPosts, isUserLoading, isPostsLoading, userError, postsError, followersCount, followingCount]);
   
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();
