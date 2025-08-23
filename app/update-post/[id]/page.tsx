@@ -2,13 +2,15 @@ import AppLayout from "../../components/AppLayout";
 import EditPostWrapper from "../../../src/_root/pages/EditPostWrapper";
 
 interface EditPostPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
-export default function EditPostPage({ params }: EditPostPageProps) {
+export default async function EditPostPage({ params }: EditPostPageProps) {
+  const resolvedParams = await params;
+  
   return (
     <AppLayout>
-      <EditPostWrapper postId={params.id} />
+      <EditPostWrapper postId={resolvedParams.id} />
     </AppLayout>
   );
 }

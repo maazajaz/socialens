@@ -1,0 +1,277 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { useUserContext } from "@/context/SupabaseAuthContext";
+import SharedPostTopbar from "@/components/shared/SharedPostTopbar";
+import ShareProfileModal from "@/components/shared/ShareProfileModal";
+import AuthPromptModal from "@/components/shared/AuthPromptModal";
+import { 
+  useGetUserById, 
+  useGetUserPosts, 
+  useGetFollowersCount, 
+  useGetFollowingCount,
+  useIsFollowing,
+  useFollowUser,
+  useUnfollowUser
+} from "@/lib/react-query/queriesAndMutations";
+import Loader from "@/components/shared/Loader";
+import GridPostList from "@/components/shared/GridPostList";
+import LinkifiedText from "@/components/shared/LinkifiedText";
+import LikedPosts from "./LikedPosts";
+
+interface StabBlockProps {
+  value: string | number;
+  label: string;
+}
+
+const StatBlock = ({ value, label }: StabBlockProps) => (
+  <div className="flex-center gap-2">
+    <p className="small-semibold lg:body-bold text-primary-500">{value}</p>
+    <p className="small-medium lg:base-medium text-light-2">{label}</p>
+  </div>
+);
+
+type SharedProfileWrapperProps = {
+  params: { id: string };
+};
+
+const SharedProfileWrapper = ({ params }: SharedProfileWrapperProps) => {
+  const { user } = useUserContext();
+  const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authAction, setAuthAction] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
+  
+  const id = params?.id;
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const { data: currentUser, isPending: isUserLoading, error: userError } = useGetUserById(id || "");
+  const { data: userPosts, isPending: isPostsLoading } = useGetUserPosts(id || "");
+  
+  const { data: followersCount } = useGetFollowersCount(id || "");
+  const { data: followingCount } = useGetFollowingCount(id || "");
+  const { data: isCurrentlyFollowing, isLoading: isFollowingLoading } = useIsFollowing(id || "");
+  
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
+  
+  const handleFollowToggle = () => {
+    if (!user) {
+      setAuthAction("follow users");
+      setShowAuthPrompt(true);
+      return;
+    }
+
+    if (!id) return;
+    
+    if (isCurrentlyFollowing) {
+      unfollowMutation.mutate(id);
+    } else {
+      followMutation.mutate(id);
+    }
+  };
+
+  const [showShareModal, setShowShareModal] = useState(false);
+  const handleShareProfile = () => {
+    setShowShareModal(true);
+  };
+  
+  const isOwnProfile = user?.id === id;
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!isMounted) {
+    return (
+      <>
+        <SharedPostTopbar />
+        <div className="flex-center w-full h-full"><Loader /></div>
+      </>
+    );
+  }
+
+  if (isUserLoading) {
+    return (
+      <>
+        <SharedPostTopbar />
+        <div className="flex-center w-full h-full"><Loader /></div>
+      </>
+    );
+  }
+  
+  if (userError) {
+    return (
+      <>
+        <SharedPostTopbar />
+        <div className="flex-center w-full h-full"><p className="text-light-1">Error loading user profile</p></div>
+      </>
+    );
+  }
+  
+  if (!currentUser) {
+    return (
+      <>
+        <SharedPostTopbar />
+        <div className="flex-center w-full h-full"><p className="text-light-1">User not found</p></div>
+      </>
+    );
+  }
+
+  // ACTION BUTTONS - Mobile optimized to match original
+  const ActionButtons = () => (
+    <div className="flex gap-2 w-full mt-3">
+      {isOwnProfile ? (
+        <>
+          <Link
+            href={`/update-profile/${currentUser.id}`}
+            className="h-10 bg-dark-4 px-4 text-light-1 flex-center gap-2 rounded-lg hover:bg-dark-3 flex-1"
+          >
+            <p className="flex whitespace-nowrap small-medium">Edit Profile</p>
+          </Link>
+          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
+            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            type="button"
+            className={`h-10 px-4 text-light-1 flex-center gap-2 rounded-lg flex-1 ${
+              user && isCurrentlyFollowing 
+                ? "bg-dark-4 hover:bg-dark-3" 
+                : "bg-primary-500 hover:bg-primary-600"
+            }`}
+            onClick={handleFollowToggle}
+            disabled={followMutation.isPending || unfollowMutation.isPending || isFollowingLoading}
+          >
+            <p className="flex whitespace-nowrap small-medium">
+              {followMutation.isPending || unfollowMutation.isPending 
+                ? "Loading..." 
+                : user && isCurrentlyFollowing 
+                  ? "Following" 
+                  : user ? "Follow" : "Sign in to Follow"
+              }
+            </p>
+          </Button>
+          <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
+            <p className="flex whitespace-nowrap small-medium">Share Profile</p>
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      <SharedPostTopbar />
+      <div className="profile-container">
+        <div className="flex flex-col w-full max-w-5xl">
+          {/* MAIN HEADER - MOBILE OPTIMIZED */}
+          <div className="flex flex-row items-center gap-4 sm:gap-6 w-full">
+            <img
+              src={
+                currentUser?.image_url || "/assets/icons/profile-placeholder.svg"
+              }
+              alt="profile"
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex-shrink-0"
+            />
+            <div className="flex flex-col items-start w-full">
+              <h1 className="text-left text-xl sm:text-2xl font-bold">
+                {currentUser.name}
+              </h1>
+              <p className="text-sm text-light-3 text-left">
+                @{currentUser.username}
+              </p>
+
+              <div className="flex gap-4 sm:gap-6 mt-3">
+                <StatBlock value={userPosts?.length || 0} label="Posts" />
+                <StatBlock value={followersCount || 0} label="Followers" />
+                <StatBlock value={followingCount || 0} label="Following" />
+              </div>
+            </div>
+          </div>
+          
+          {/* BIO */}
+          {currentUser.bio && (
+            <div className="mt-2 w-full">
+              <LinkifiedText 
+                text={currentUser.bio}
+                className="text-sm text-left"
+              />
+            </div>
+          )}
+
+          <ActionButtons />
+        </div>
+        
+        {/* POSTS TABS */}
+        <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2">
+          {(user || isOwnProfile) && (
+            <div className="flex max-w-5xl w-full">
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`profile-tab rounded-l-lg ${
+                  activeTab === 'posts' && "!bg-dark-3"
+                }`}
+              >
+                <img src={"/assets/icons/posts.svg"} alt="posts" width={20} height={20} />
+                Posts
+              </button>
+              {/* Only show liked posts tab for own profile */}
+              {isOwnProfile && (
+                <button
+                  onClick={() => setActiveTab('liked')}
+                  className={`profile-tab rounded-r-lg ${
+                    activeTab === 'liked' && "!bg-dark-3"
+                  }`}
+                >
+                  <img src={"/assets/icons/like.svg"} alt="like" width={20} height={20} />
+                  Liked Posts
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="w-full max-w-5xl mt-4">
+          {activeTab === 'posts' ? (
+            isPostsLoading ? (
+              <Loader />
+            ) : userPosts && userPosts.length > 0 ? (
+              <GridPostList posts={userPosts} showUser={false} showStats={!!user} />
+            ) : (
+              <p className="text-light-4 text-center w-full mt-10">
+                No posts yet
+              </p>
+            )
+          ) : (
+            // Only show liked posts if it's the user's own profile and they're authenticated
+            isOwnProfile && user ? <LikedPosts /> : null
+          )}
+        </div>
+
+        {/* Share Profile Modal */}
+        {currentUser && (
+          <ShareProfileModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            user={currentUser}
+          />
+        )}
+
+        {/* Auth Prompt Modal */}
+        <AuthPromptModal
+          isOpen={showAuthPrompt}
+          onClose={() => setShowAuthPrompt(false)}
+          action={authAction}
+        />
+      </div>
+    </>
+  );
+};
+
+export default SharedProfileWrapper;

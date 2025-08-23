@@ -187,7 +187,7 @@ const PostFormNextJS = ({ post, action }: PostFormNextJSProps) => {
           )}
         />
 
-        <div className="flex gap-4 items-center justify-end">
+        <div className="flex gap-4 items-center justify-end pt-6 pb-4">
           <Button
             type="button"
             className="shad-button_dark_4"

@@ -119,7 +119,7 @@ const UpdateProfileWrapper = ({ params }: UpdateProfileWrapperProps) => {
 
   return (
     <div className="flex flex-1">
-      <div className="common-container">
+      <div className="common-container pb-32 md:pb-12">
         <div className="flex-start gap-3 justify-start w-full max-w-5xl">
           <img
             src="/assets/icons/edit.svg"
@@ -221,7 +221,7 @@ const UpdateProfileWrapper = ({ params }: UpdateProfileWrapperProps) => {
               )}
             />
 
-            <div className="flex gap-4 items-center justify-end">
+            <div className="flex gap-4 items-center justify-end pt-6 pb-4">
               <Button
                 type="button"
                 className="shad-button_dark_4"

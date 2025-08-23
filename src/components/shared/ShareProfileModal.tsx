@@ -11,7 +11,7 @@ type ShareProfileModalProps = {
 const ShareProfileModal = ({ isOpen, onClose, user }: ShareProfileModalProps) => {
   const [copied, setCopied] = useState(false);
 
-  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${user.id}`;
+  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/shared-profile/${user.id}`;
   const shareText = `Check out ${user.name}'s profile on Socialens!`;
 
   const shareOptions = [

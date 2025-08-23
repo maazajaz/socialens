@@ -1,7 +1,7 @@
 "use client";
 import SharedPostTopbar from "../../../src/components/shared/SharedPostTopbar";
 
-// import { use } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
 import { useGetPostById } from "../../../src/lib/react-query/queriesAndMutations";
 import { multiFormatDateString } from "../../../src/lib/utils";
@@ -13,12 +13,12 @@ import Comments from "../../../src/components/shared/Comments";
 import Link from "next/link";
 
 interface PostDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 const PostDetailPage = ({ params }: PostDetailPageProps) => {
   const router = useRouter();
-  const { id } = params;
+  const { id } = use(params);
   const { user } = useUserContext();
 
   const { data: post, isLoading } = useGetPostById(id);

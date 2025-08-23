@@ -21,6 +21,7 @@ export async function middleware(request: NextRequest) {
     '/sign-up',
     '/posts', // Allow public access to individual posts
     '/profile', // Allow public access to profiles
+    '/shared-profile', // Allow public access to shared profiles
   ]
 
   // Check if the current route is public or starts with a public route

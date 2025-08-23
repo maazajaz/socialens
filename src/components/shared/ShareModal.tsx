@@ -14,7 +14,7 @@ const ShareModal = ({ isOpen, onClose, post, isProfile = false }: ShareModalProp
   
 
   const postUrl = isProfile
-    ? post.url || `${typeof window !== 'undefined' ? window.location.origin : ''}/profile/${post.id}`
+    ? post.url || `${typeof window !== 'undefined' ? window.location.origin : ''}/shared-profile/${post.id}`
     : `${typeof window !== 'undefined' ? window.location.origin : ''}/posts/${post.id}`;
   const shareText = isProfile
     ? `Check out ${post.name}'s profile (@${post.username})!${post.bio ? ' ' + post.bio : ''}`

@@ -1,10 +1,9 @@
-// Temporary code for debugging
+import SharedProfileWrapper from '../../../src/_root/pages/SharedProfileWrapper';
 
-export default function Page({ params }: { params: { id: string } }) {
+export default async function SharedProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
   return (
-    <div>
-      <h1>Profile Page for User</h1>
-      <p>User ID: {params.id}</p>
-    </div>
+    <SharedProfileWrapper params={resolvedParams} />
   );
 }

@@ -26,9 +26,7 @@ import { useCreateUserAccount, useSignInAccount } from "@/lib/react-query/querie
 
 const SignupForm = () => {
   const { toast } = useToast()
-
-
-
+  const router = useRouter()
 
   // 1. Define your form.
   const form = useForm<z.infer<typeof SignupValidation>>({
@@ -47,14 +45,64 @@ const SignupForm = () => {
  
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof SignupValidation>) {
-    const newUser = await createUserAccount(values);
+    try {
+      console.log('Starting signup process with values:', { 
+        name: values.name, 
+        username: values.username, 
+        email: values.email 
+      });
 
-    if (!newUser) {
-      toast({ title: "Sign up failed. Please try again.", });
+      const newUser = await createUserAccount(values);
+
+      console.log('Signup result:', newUser);
+
+      if (!newUser) {
+        console.error('Signup failed: newUser is null/undefined');
+        toast({ 
+          title: "Sign up failed", 
+          description: "Unable to create account. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Show success message
+      toast({ 
+        title: "Account created successfully!", 
+        description: "Please sign in with your new account."
+      });
+
+      // Redirect to sign-in page
+      router.push('/sign-in');
       
-      return;
+    } catch (error: any) {
+      console.error('Signup error details:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error code:', error?.code);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = "Sign up failed. Please try again.";
+      
+      if (error?.message) {
+        if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+          errorMessage = "An account with this email or username already exists.";
+        } else if (error.message.includes('weak password') || error.message.includes('password')) {
+          errorMessage = "Password is too weak. Please use a stronger password.";
+        } else if (error.message.includes('invalid email') || error.message.includes('email')) {
+          errorMessage = "Please enter a valid email address.";
+        } else if (error.message.includes('row-level security policy') || error.code === '42501') {
+          errorMessage = "Account creation is temporarily unavailable. Please try again later or contact support.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast({ 
+        title: "Sign up failed", 
+        description: errorMessage,
+        variant: "destructive"
+      });
     }
-    
   }
   return (
     <Form {...form}>

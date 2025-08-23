@@ -17,11 +17,6 @@ const GridPostList = ({
 }: GridPostListProps) => {
   const { user } = useUserContext();
 
-  // Add null check for user context
-  if (!user) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <ul className="grid-container">
       {posts.map((post) => (

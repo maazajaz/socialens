@@ -5,6 +5,8 @@ import {
   useInfiniteQuery,
 } from "@tanstack/react-query";
 
+import { useUserContext } from "@/context/SupabaseAuthContext";
+
 import {
   createPost,
   getCurrentUser,
@@ -37,6 +39,7 @@ import {
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
+import { notificationService } from "../utils/notificationService";
 export const useCreateUserAccount = () => {
     return useMutation({
         mutationFn: (user: INewUser) => signUpUser(user)
@@ -59,10 +62,28 @@ export const useCreatePost = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (post: INewPost) => createPost(post),
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
       });
+      
+      // Create notifications for followers when a new post is created
+      if (data && variables.userId) {
+        try {
+          const user = await getCurrentUser();
+          if (user) {
+            await notificationService.createNewPostNotifications(
+              data.id,
+              variables.userId,
+              user.name || user.username || 'Unknown User',
+              user.image_url || '',
+              variables.caption || 'New post'
+            );
+          }
+        } catch (error) {
+          console.error('Error creating new post notifications:', error);
+        }
+      }
     },
   });
 };
@@ -106,7 +127,7 @@ export const useLikePost = () => {
         postId: string;
         userId: string;
       }) => likePost(postId, userId), // Updated to match our Supabase API
-      onSuccess: () => {
+      onSuccess: async (_, variables) => {
         queryClient.invalidateQueries({
           queryKey: [QUERY_KEYS.GET_POST_BY_ID],
         });
@@ -119,6 +140,24 @@ export const useLikePost = () => {
         queryClient.invalidateQueries({
           queryKey: [QUERY_KEYS.GET_CURRENT_USER],
         });
+        
+        // Create like notification
+        try {
+          const post = await getPostById(variables.postId);
+          const user = await getCurrentUser();
+          
+          if (post && user && post.creator?.id !== variables.userId) {
+            await notificationService.createLikeNotification(
+              variables.postId,
+              post.creator.id,
+              variables.userId,
+              user.name || user.username || 'Unknown User',
+              user.image_url || ''
+            );
+          }
+        } catch (error) {
+          console.error('Error creating like notification:', error);
+        }
       },
     });
 };
@@ -346,6 +385,8 @@ export const useUpdateUser = () => {
 
 export const useFollowUser = () => {
   const queryClient = useQueryClient();
+  const { user } = useUserContext();
+  
   return useMutation({
     mutationFn: (userId: string) => followUser(userId),
     onMutate: async (userId) => {
@@ -375,7 +416,21 @@ export const useFollowUser = () => {
         queryClient.setQueryData([QUERY_KEYS.GET_FOLLOWERS_COUNT, context.userId], context.previousFollowerCount);
       }
     },
-    onSuccess: (_, userId) => {
+    onSuccess: async (_, userId) => {
+      // Create notification for the followed user
+      if (user) {
+        try {
+          await notificationService.createFollowNotification(
+            userId,
+            user.id,
+            user.name,
+            user.image_url || ''
+          );
+        } catch (error) {
+          console.error('Failed to create follow notification:', error);
+        }
+      }
+
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_USER_BY_ID, userId],
       });

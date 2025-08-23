@@ -2,6 +2,7 @@
 
 import { createClient } from './client'
 import { Database } from './database.types'
+import { NotificationService } from '../utils/notificationService'
 
 export type User = Database['public']['Tables']['users']['Row']
 export type Post = Database['public']['Tables']['posts']['Row'] & {
@@ -35,6 +36,12 @@ const supabase = createClient()
 
 export async function signUpUser(user: { name: string; email: string; password: string; username: string }) {
   try {
+    console.log('Attempting to sign up user:', { 
+      email: user.email, 
+      name: user.name, 
+      username: user.username 
+    });
+
     const { data, error } = await supabase.auth.signUp({
       email: user.email,
       password: user.password,
@@ -46,11 +53,35 @@ export async function signUpUser(user: { name: string; email: string; password: 
       }
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase auth.signUp error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code || 'No code'
+      });
+      throw error;
+    }
+
+    console.log('Auth signup successful:', data);
 
     // Create user profile in users table
     if (data.user) {
-      const { error: profileError } = await supabase
+      console.log('Creating user profile in users table...');
+      
+      // Wait for auth context to be fully available
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Create a new supabase client instance to ensure fresh auth context
+      const freshClient = createClient();
+      
+      // Set the session explicitly
+      if (data.session) {
+        await freshClient.auth.setSession(data.session);
+        console.log('Session set for profile creation');
+      }
+      
+      const { error: profileError } = await freshClient
         .from('users')
         .insert([
           {
@@ -58,31 +89,83 @@ export async function signUpUser(user: { name: string; email: string; password: 
             email: user.email,
             name: user.name,
             username: user.username,
+            image_url: null,
+            bio: null
           }
         ])
       
-      if (profileError) throw profileError
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        console.error('Profile error details:', {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code
+        });
+
+        // Try the alternative approach: service role insert
+        if (profileError.code === '42501') {
+          console.log('Attempting service role insert as fallback...');
+          try {
+            // This would require service role key in a separate API route
+            // For now, let's provide clear error message
+            throw new Error('RLS policy error: User authentication not recognized. Please try the database trigger approach or check your Supabase session configuration.');
+          } catch (fallbackError) {
+            throw new Error('Database permission error. Please check your RLS policies for the users table.');
+          }
+        }
+        
+        throw profileError;
+      }
+      
+      console.log('User profile created successfully');
     }
 
     return data
-  } catch (error) {
-    console.error('Error signing up:', error)
+  } catch (error: any) {
+    console.error('Error in signUpUser function:', error);
     throw error
   }
 }
 
 export async function signInUser(user: { email: string; password: string }) {
   try {
+    console.log('Attempting to sign in user:', { email: user.email });
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: user.password,
     })
 
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error('Error signing in:', error)
-    throw error
+    if (error) {
+      console.error('Supabase auth.signInWithPassword error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code || 'No code'
+      });
+      
+      // Enhance error message for better user experience
+      if (error.message.includes('Email not confirmed')) {
+        const enhancedError = new Error('Email verification required. Please verify your email address first, then try logging in.');
+        enhancedError.name = 'EmailNotConfirmedError';
+        throw enhancedError;
+      }
+      
+      if (error.message.includes('Invalid login credentials')) {
+        const enhancedError = new Error('Invalid email or password. Please check your credentials and try again.');
+        enhancedError.name = 'InvalidCredentialsError';
+        throw enhancedError;
+      }
+      
+      throw error;
+    }
+
+    console.log('Sign in successful:', { user: data.user?.email });
+    return data;
+  } catch (error: any) {
+    console.error('Error in signInUser function:', error);
+    throw error;
   }
 }
 
@@ -336,32 +419,8 @@ export async function createPost(post: {
 
     console.log('Post created successfully:', data)
 
-    // Notify all followers of the creator
-    try {
-      const followers = await getFollowers(post.userId);
-      console.log('Followers for notification:', followers);
-      if (followers && followers.length > 0) {
-        const notifications = followers.map((follower: any) => ({
-          type: 'new_post',
-          message: 'uploaded a new post',
-          user_id: post.userId,
-          target_user_id: follower.id,
-          post_id: data.id,
-          read: false,
-          created_at: new Date().toISOString(),
-        }));
-        const { error: notifError, data: notifData } = await supabase.from('notifications').insert(notifications);
-        if (notifError) {
-          console.error('Notification insert error:', notifError);
-        } else {
-          console.log('Notifications inserted:', notifData);
-        }
-      } else {
-        console.log('No followers to notify.');
-      }
-    } catch (notifyErr) {
-      console.error('Error creating notifications for followers:', notifyErr);
-    }
+    // Note: Notifications are now handled by the notification service in the React query mutations
+    
     return data
   } catch (error) {
     console.error('Error creating post:', error)
@@ -546,6 +605,30 @@ export async function likePost(postId: string, userId: string) {
   try {
     console.log('Liking post:', { postId, userId })
     
+    // First, get the post details to create notification for post owner
+    const { data: post, error: postError } = await supabase
+      .from('posts')
+      .select('creator_id, creator:users!posts_creator_id_fkey(id, name, username, image_url)')
+      .eq('id', postId)
+      .single()
+
+    if (postError) {
+      console.error('Error fetching post for notification:', postError)
+      throw postError
+    }
+
+    // Get the liker's details for the notification
+    const { data: liker, error: likerError } = await supabase
+      .from('users')
+      .select('id, name, username, image_url')
+      .eq('id', userId)
+      .single()
+
+    if (likerError) {
+      console.error('Error fetching liker details:', likerError)
+      throw likerError
+    }
+    
     const { data, error } = await supabase
       .from('likes')
       .insert([
@@ -558,13 +641,31 @@ export async function likePost(postId: string, userId: string) {
 
     if (error) {
       console.error('Like insertion error:', error)
+      console.error('Like insertion error details:', JSON.stringify(error, null, 2))
+      console.error('Error message:', error.message)
+      console.error('Error code:', error.code)
       throw error
     }
     
     console.log('Like created successfully:', data)
+
+    // Create like notification (don't await to avoid blocking the response)
+    const notificationService = NotificationService.getInstance()
+    notificationService.createLikeNotification(
+      postId,
+      post.creator_id,
+      userId,
+      liker.name || liker.username || 'Someone',
+      liker.image_url || '/assets/icons/profile-placeholder.svg'
+    ).catch(err => console.error('Error creating like notification:', err))
+    
     return data
   } catch (error) {
     console.error('Error liking post:', error)
+    console.error('Error liking post details:', JSON.stringify(error, null, 2))
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+    }
     throw error
   }
 }
@@ -872,6 +973,8 @@ export async function followUser(followingId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
+    console.log('Attempting to follow user:', { follower_id: user.id, following_id: followingId })
+
     const { data, error } = await supabase
       .from('follows')
       .insert([
@@ -881,7 +984,18 @@ export async function followUser(followingId: string) {
         }
       ])
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error in followUser:', error)
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      throw error
+    }
+    
+    console.log('Successfully followed user:', data)
     return data
   } catch (error) {
     console.error('Error following user:', error)
@@ -894,13 +1008,26 @@ export async function unfollowUser(followingId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
+    console.log('Attempting to unfollow user:', { follower_id: user.id, following_id: followingId })
+
     const { data, error } = await supabase
       .from('follows')
       .delete()
       .eq('follower_id', user.id)
       .eq('following_id', followingId)
 
-    if (error) throw error
+    if (error) {
+      console.error('Database error in unfollowUser:', error)
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
+      throw error
+    }
+    
+    console.log('Successfully unfollowed user:', data)
     return data
   } catch (error) {
     console.error('Error unfollowing user:', error)

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { multiFormatDateString } from "@/lib/utils";
 import { useUserContext } from "@/context/SupabaseAuthContext";
+import { useDeletePost } from "@/lib/react-query/queriesAndMutations";
+import { Button } from "@/components/ui/button";
 import PostStats from "./PostStats";
 import QuickComment from "./QuickComment";
 
@@ -14,11 +16,18 @@ type PostCardProps = {
 const PostCard = ({ post }: PostCardProps) => {
   const { user } = useUserContext();
   const [showComments, setShowComments] = useState(false);
+  const { mutate: deletePost } = useDeletePost();
 
   if (!post.creator) return;
 
   const handleCommentClick = () => {
     setShowComments(!showComments);
+  };
+
+  const handleDeletePost = () => {
+    if (confirm("Are you sure you want to delete this post?")) {
+      deletePost({ postId: post.id });
+    }
   };
 
   return (
@@ -52,16 +61,29 @@ const PostCard = ({ post }: PostCardProps) => {
           </div>
         </div>
 
-        <Link
-          href={`/update-post/${post.id}`}
-          className={`${user?.id !== post.creator.id && "hidden"}`}>
-          <img
-            src={"/assets/icons/edit.svg"}
-            alt="edit"
-            width={20}
-            height={20}
-          />
-        </Link>
+        <div className={`flex gap-2 ${user?.id !== post.creator.id && "hidden"}`}>
+          <Link href={`/update-post/${post.id}`}>
+            <img
+              src={"/assets/icons/edit.svg"}
+              alt="edit"
+              width={20}
+              height={20}
+            />
+          </Link>
+          
+          <Button
+            onClick={handleDeletePost}
+            variant="ghost"
+            className="p-0 h-auto"
+          >
+            <img
+              src={"/assets/icons/delete.svg"}
+              alt="delete"
+              width={20}
+              height={20}
+            />
+          </Button>
+        </div>
       </div>
 
       <Link href={`/posts/${post.id}`}>

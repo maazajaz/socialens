@@ -3,6 +3,7 @@
 import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -10,16 +11,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Loader from "@/components/shared/Loader";
-import { useToast } from "@/components/ui/use-toast";
 
 import { SigninValidation } from "@/lib/validation";
 import { useSignInAccount } from "@/lib/react-query/queriesAndMutations";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 
 const SigninForm = () => {
-  const { toast } = useToast();
   const router = useRouter();
   const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
+
+  // State for inline error display
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   // Query
   const { mutateAsync: signInAccount, isPending } = useSignInAccount();
@@ -33,11 +35,14 @@ const SigninForm = () => {
   });
 
   const handleSignin = async (user: z.infer<typeof SigninValidation>) => {
+    // Clear previous error
+    setSignInError(null);
+    
     try {
       const session = await signInAccount(user);
 
       if (!session) {
-        toast({ title: "Login failed. Please try again." });
+        setSignInError("Login failed. Please try again.");
         return;
       }
 
@@ -45,15 +50,41 @@ const SigninForm = () => {
 
       if (isLoggedIn) {
         form.reset();
-        toast({ title: "Login successful!" });
+        setSignInError(null);
         router.push("/");
       } else {
-        toast({ title: "Authentication check failed. Please try again." });
+        setSignInError("Authentication check failed. Please try again.");
         return;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      toast({ title: "An error occurred during login." });
+      
+      // Handle enhanced error messages from signInUser function
+      if (error?.name === 'EmailNotConfirmedError') {
+        setSignInError("⚠️ Email verification required. Please check your email and click the verification link, then try logging in again.");
+        return;
+      }
+      
+      if (error?.name === 'InvalidCredentialsError') {
+        setSignInError("❌ Invalid credentials. Please check your email and password and try again.");
+        return;
+      }
+      
+      // Fallback checks for legacy error handling
+      if (error?.message) {
+        if (error.message.includes('email not confirmed') || 
+            error.message.includes('Email not confirmed') ||
+            error.message.includes('Email verification required')) {
+          setSignInError("⚠️ Email verification required. Please verify your email address first, then try logging in.");
+        } else if (error.message.includes('Invalid login credentials') || 
+                   error.message.includes('Invalid email or password')) {
+          setSignInError("❌ Invalid credentials. Please check your email and password and try again.");
+        } else {
+          setSignInError(`❌ Login failed: ${error.message}`);
+        }
+      } else {
+        setSignInError("❌ An unexpected error occurred. Please try again.");
+      }
     }
   };
 
@@ -83,7 +114,16 @@ const SigninForm = () => {
               <FormItem>
                 <FormLabel className="shad-form_label">Email</FormLabel>
                 <FormControl>
-                  <Input type="text" className="shad-input" {...field} />
+                  <Input 
+                    type="text" 
+                    className="shad-input" 
+                    {...field} 
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Clear error when user starts typing
+                      if (signInError) setSignInError(null);
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -97,12 +137,28 @@ const SigninForm = () => {
               <FormItem>
                 <FormLabel className="shad-form_label">Password</FormLabel>
                 <FormControl>
-                  <Input type="password" className="shad-input" {...field} />
+                  <Input 
+                    type="password" 
+                    className="shad-input" 
+                    {...field} 
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Clear error when user starts typing
+                      if (signInError) setSignInError(null);
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Inline error display */}
+          {signInError && (
+            <div className="text-red-500 text-sm mt-1 p-2 bg-red-50 border border-red-200 rounded-md">
+              {signInError}
+            </div>
+          )}
 
           <Button type="submit" className="shad-button_primary mt-3 sm:mt-4">
             {isPending || isUserLoading ? (

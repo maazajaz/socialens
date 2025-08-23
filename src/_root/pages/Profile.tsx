@@ -165,7 +165,7 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   );
 
   return (
-    <div className="profile-container">
+    <div className="profile-container pb-20 md:pb-8">
       <div className="flex flex-col w-full max-w-5xl">
         <div className="flex flex-row items-center gap-4 sm:gap-6 w-full">
           <img
