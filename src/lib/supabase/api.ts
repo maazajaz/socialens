@@ -1823,3 +1823,70 @@ export async function getCommentLikeStatus(commentId: string, userId: string): P
     return false
   }
 }
+
+// ============ PASSWORD RESET FUNCTIONS ============
+
+export async function sendPasswordResetOTP(email: string) {
+  try {
+    // First check if user exists
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email)
+      .single()
+
+    if (userError || !userData) {
+      throw new Error('No account found with this email address')
+    }
+
+    // Send OTP for password reset
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    })
+
+    if (error) throw error
+    
+    return { success: true, message: 'OTP sent to your email' }
+  } catch (error: any) {
+    console.error('Error sending password reset OTP:', error)
+    throw error
+  }
+}
+
+export async function verifyPasswordResetOTP(email: string, token: string, newPassword: string) {
+  try {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'recovery'
+    })
+
+    if (error) throw error
+
+    // Update password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (updateError) throw updateError
+
+    return { success: true, message: 'Password updated successfully' }
+  } catch (error: any) {
+    console.error('Error verifying OTP and updating password:', error)
+    throw error
+  }
+}
+
+export async function updateUserPassword(newPassword: string) {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (error) throw error
+    return { success: true, message: 'Password updated successfully' }
+  } catch (error: any) {
+    console.error('Error updating password:', error)
+    throw error
+  }
+}

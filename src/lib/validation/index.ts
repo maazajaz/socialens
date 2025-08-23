@@ -15,6 +15,22 @@ export const SigninValidation = z.object({
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
 });
 
+export const ForgotPasswordValidation = z.object({
+  email: z.string().email({ message: "Please enter a valid email address." }),
+});
+
+export const OTPVerificationValidation = z.object({
+  otp: z.string().min(6, { message: "OTP must be 6 digits." }).max(6, { message: "OTP must be 6 digits." }),
+});
+
+export const ResetPasswordValidation = z.object({
+  password: z.string().min(8, { message: "Password must be at least 8 characters." }),
+  confirmPassword: z.string().min(8, { message: "Password must be at least 8 characters." }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 export const ProfileValidation = z.object({
   file: z.custom<File[]>(),
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),

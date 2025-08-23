@@ -153,6 +153,16 @@ const SigninForm = () => {
             )}
           />
 
+          {/* Forgot Password Link */}
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="text-primary-500 text-sm font-medium hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           {/* Inline error display */}
           {signInError && (
             <div className="text-red-500 text-sm mt-1 p-2 bg-red-50 border border-red-200 rounded-md">

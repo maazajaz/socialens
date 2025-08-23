@@ -46,6 +46,9 @@ import {
   getAdminUsers,
   addAdminUser,
   removeAdminUser,
+  sendPasswordResetOTP,
+  verifyPasswordResetOTP,
+  updateUserPassword,
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
@@ -672,5 +675,29 @@ export const useGetFollowing = (userId: string) => {
     queryKey: [QUERY_KEYS.GET_FOLLOWING, userId],
     queryFn: () => getFollowing(userId),
     enabled: !!userId,
+  });
+};
+
+// ============ PASSWORD RESET MUTATIONS ============
+
+export const useSendPasswordResetOTP = () => {
+  return useMutation({
+    mutationFn: (email: string) => sendPasswordResetOTP(email),
+  });
+};
+
+export const useVerifyPasswordResetOTP = () => {
+  return useMutation({
+    mutationFn: ({ email, token, newPassword }: { 
+      email: string; 
+      token: string; 
+      newPassword: string; 
+    }) => verifyPasswordResetOTP(email, token, newPassword),
+  });
+};
+
+export const useUpdatePassword = () => {
+  return useMutation({
+    mutationFn: (newPassword: string) => updateUserPassword(newPassword),
   });
 };
