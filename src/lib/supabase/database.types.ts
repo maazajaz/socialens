@@ -14,6 +14,7 @@ export interface Database {
           is_active: boolean | null
           is_deactivated: boolean | null
           last_active: string | null
+          privacy_setting: 'public' | 'private' | 'followers_only' | null
         }
         Insert: {
           id?: string
@@ -27,6 +28,7 @@ export interface Database {
           is_active?: boolean | null
           is_deactivated?: boolean | null
           last_active?: string | null
+          privacy_setting?: 'public' | 'private' | 'followers_only' | null
         }
         Update: {
           id?: string
@@ -40,6 +42,7 @@ export interface Database {
           is_active?: boolean | null
           is_deactivated?: boolean | null
           last_active?: string | null
+          privacy_setting?: 'public' | 'private' | 'followers_only' | null
         }
       }
       posts: {
@@ -51,6 +54,7 @@ export interface Database {
           location: string | null
           tags: string[] | null
           creator_id: string
+          category: 'general' | 'announcement' | 'question' | null
         }
         Insert: {
           id?: string
@@ -60,6 +64,7 @@ export interface Database {
           location?: string | null
           tags?: string[] | null
           creator_id: string
+          category?: 'general' | 'announcement' | 'question' | null
         }
         Update: {
           id?: string
@@ -69,6 +74,7 @@ export interface Database {
           location?: string | null
           tags?: string[] | null
           creator_id?: string
+          category?: 'general' | 'announcement' | 'question' | null
         }
       }
       likes: {

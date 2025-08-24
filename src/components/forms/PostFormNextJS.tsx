@@ -13,7 +13,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { useUpdatePost, useCreatePost } from "@/lib/react-query/queriesAndMutations";
+import { POST_CATEGORIES } from "@/constants";
 
 type PostFormNextJSProps = {
   post?: any; // Post data from Supabase
@@ -31,6 +33,7 @@ const PostFormNextJS = ({ post, action }: PostFormNextJSProps) => {
       file: [],
       location: post ? post.location : "",
       tags: post ? post.tags.join(",") : "",
+      category: post ? post.category : "general",
     },
   });
 
@@ -55,6 +58,7 @@ const PostFormNextJS = ({ post, action }: PostFormNextJSProps) => {
           file: value.file,
           location: value.location,
           tags: value.tags,
+          category: value.category,
         });
 
         console.log("Updated post result:", updatedPost);
@@ -91,6 +95,7 @@ const PostFormNextJS = ({ post, action }: PostFormNextJSProps) => {
         file: value.file,
         location: value.location,
         tags: value.tags,
+        category: value.category,
       });
 
       console.log("Created post result:", newPost);
@@ -182,6 +187,31 @@ const PostFormNextJS = ({ post, action }: PostFormNextJSProps) => {
                   {...field}
                 />
               </FormControl>
+              <FormMessage className="shad-form_message" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="shad-form_label">Category *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="shad-input">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {POST_CATEGORIES.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage className="shad-form_message" />
             </FormItem>
           )}

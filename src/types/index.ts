@@ -21,6 +21,7 @@ export type IUpdateUser = {
   bio: string;
   imageUrl?: string;
   file: File[];
+  privacy_setting?: 'public' | 'private' | 'followers_only';
 };
 
 export type INewPost = {
@@ -29,6 +30,7 @@ export type INewPost = {
   file: File[];
   location?: string;
   tags?: string;
+  category: 'general' | 'announcement' | 'question';
 };
 
 export type IUpdatePost = {
@@ -38,6 +40,7 @@ export type IUpdatePost = {
   file: File[];
   location?: string;
   tags?: string;
+  category?: 'general' | 'announcement' | 'question';
 };
 
 export type IUser = {
@@ -47,6 +50,7 @@ export type IUser = {
   email: string;
   imageUrl: string;
   bio: string;
+  privacy_setting?: 'public' | 'private' | 'followers_only';
 };
 
 export type INewUser = {

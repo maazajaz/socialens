@@ -43,7 +43,20 @@ export const sidebarLinks = [
     is_active: null,
     is_deactivated: null,
     last_active: null,
+    privacy_setting: "public" as const,
   };
+
+  export const PRIVACY_SETTINGS = [
+    { value: "public", label: "Public", description: "Anyone can see your posts", icon: "🌍" },
+    { value: "private", label: "Private", description: "Only you can see your posts", icon: "🔒" },
+    { value: "followers_only", label: "Followers Only", description: "Only your followers can see your posts", icon: "👥" }
+  ] as const;
+
+  export const POST_CATEGORIES = [
+    { value: "general", label: "General", icon: "💬", color: "bg-blue-500" },
+    { value: "announcement", label: "Announcement", icon: "📢", color: "bg-orange-500" },
+    { value: "question", label: "Question", icon: "❓", color: "bg-green-500" }
+  ] as const;
 
   export const bottombarLinks = [
     {

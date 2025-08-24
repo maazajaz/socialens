@@ -12,8 +12,9 @@ import Loader from "../shared/Loader";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Textarea } from "../ui";
+import { Textarea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui";
 import { useCreatePost, useUpdatePost } from "@/lib/react-query/queriesAndMutations";
+import { POST_CATEGORIES } from "@/constants";
 
 type PostFormProps = {
   post?: any; // TODO: Add proper Supabase Post type
@@ -31,6 +32,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
       file: [],
       location: post ? post.location : "",
       tags: post ? (Array.isArray(post.tags) ? post.tags.join(",") : post.tags || "") : "",
+      category: post ? post.category : "general",
     },
   });
 
@@ -172,6 +174,31 @@ const PostForm = ({ post, action }: PostFormProps) => {
                   {...field}
                 />
               </FormControl>
+              <FormMessage className="shad-form_message" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="shad-form_label">Category *</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="shad-input">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {POST_CATEGORIES.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage className="shad-form_message" />
             </FormItem>
           )}

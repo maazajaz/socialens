@@ -8,6 +8,7 @@ import { useDeletePost } from "@/lib/react-query/queriesAndMutations";
 import { Button } from "@/components/ui/button";
 import PostStats from "./PostStats";
 import QuickComment from "./QuickComment";
+import { POST_CATEGORIES } from "@/constants";
 
 type PostCardProps = {
   post: any; // TODO: Add proper type from Supabase
@@ -57,6 +58,14 @@ const PostCard = ({ post }: PostCardProps) => {
               <p className="subtle-semibold lg:small-regular">
                 {post.location}
               </p>
+              {post.category && (
+                <>
+                  •
+                  <span className="subtle-semibold lg:small-regular text-primary-500 capitalize">
+                    {POST_CATEGORIES.find(cat => cat.value === post.category)?.label || post.category}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

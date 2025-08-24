@@ -15,7 +15,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
-import { Textarea, Input, Button } from "@/components/ui";
+import { Textarea, Input, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import { PRIVACY_SETTINGS } from "@/constants";
 
 
 import { ProfileValidation } from "@/lib/validation";
@@ -45,6 +46,7 @@ const UpdateProfile = () => {
       username: currentUser?.username || "",
       email: currentUser?.email || "",
       bio: currentUser?.bio || "",
+      privacy_setting: currentUser?.privacy_setting || "public",
     },
   });
 
@@ -57,6 +59,7 @@ const UpdateProfile = () => {
         username: currentUser.username || "",
         email: currentUser.email || "",
         bio: currentUser.bio || "",
+        privacy_setting: currentUser.privacy_setting || "public",
       });
     }
   }, [currentUser, form]);
@@ -77,6 +80,7 @@ const UpdateProfile = () => {
         username: value.username,
         email: value.email,
         bio: value.bio,
+        privacy_setting: value.privacy_setting,
         file: value.file,
         imageUrl: currentUser.image_url,
       });
@@ -95,6 +99,7 @@ const UpdateProfile = () => {
           username: updatedUser?.username || user.username,
           email: updatedUser?.email || user.email,
           bio: updatedUser?.bio || user.bio,
+          privacy_setting: updatedUser?.privacy_setting || user.privacy_setting,
           image_url: updatedUser?.image_url || user.image_url,
         });
       }
@@ -213,6 +218,34 @@ const UpdateProfile = () => {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage className="shad-form_message" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="privacy_setting"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="shad-form_label">Privacy Setting</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="shad-input">
+                        <SelectValue placeholder="Select privacy level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PRIVACY_SETTINGS.map((setting) => (
+                        <SelectItem key={setting.value} value={setting.value}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{setting.label}</span>
+                            <span className="text-sm text-light-3">{setting.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage className="shad-form_message" />
                 </FormItem>
               )}

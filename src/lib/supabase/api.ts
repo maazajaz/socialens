@@ -646,6 +646,11 @@ export async function updateUser(userId: string, userData: any) {
       bio: userData.bio,
     };
 
+    // Add privacy_setting if provided
+    if (userData.privacy_setting !== undefined) {
+      userUpdateData.privacy_setting = userData.privacy_setting;
+    }
+
     // Only include image_url if we have one
     if (imageUrl) {
       userUpdateData.image_url = imageUrl;
@@ -1005,6 +1010,7 @@ export async function createPost(post: {
   location?: string
   tags?: string
   userId: string
+  category: 'general' | 'announcement' | 'question'
 }) {
   try {
     console.log('Creating post with data:', post)
@@ -1074,6 +1080,7 @@ export async function createPost(post: {
       location: post.location,
       tags: tagsArray,
       creator_id: post.userId,
+      category: post.category,
     }
     console.log('Insert data:', insertData)
     
@@ -1108,6 +1115,9 @@ export async function createPost(post: {
 
 export async function getRecentPosts() {
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Get all posts without any filtering in the query
     const { data, error } = await supabase
       .from('posts')
       .select(`
@@ -1120,10 +1130,27 @@ export async function getRecentPosts() {
 
     if (error) throw error
     
+    // Client-side privacy filtering
+    const filteredData = data?.filter(post => {
+      const creator = post.creator;
+      
+      // If user is authenticated
+      if (user) {
+        // Always show own posts
+        if (creator.id === user.id) return true;
+        
+        // Only show public posts from others (followers_only and private are hidden in explore/recent)
+        return creator.privacy_setting === 'public';
+      } else {
+        // For unauthenticated users - only show public posts
+        return creator.privacy_setting === 'public';
+      }
+    }) || [];
+    
     // Add comment counts to posts
-    if (data) {
+    if (filteredData.length > 0) {
       const postsWithCommentCounts = await Promise.all(
-        data.map(async (post) => {
+        filteredData.map(async (post) => {
           const { count } = await supabase
             .from('comments')
             .select('*', { count: 'exact', head: true })
@@ -1140,7 +1167,7 @@ export async function getRecentPosts() {
       return postsWithCommentCounts
     }
     
-    return data
+    return filteredData
   } catch (error) {
     console.error('Error getting recent posts:', error)
     throw error
@@ -1207,6 +1234,7 @@ export async function getUserPosts(userId: string) {
 
 // Get posts from followed users and own posts for the following feed
 // Automatically updates when user follows/unfollows someone via React Query invalidation
+// Respects user privacy settings
 export async function getFollowingFeed(page: number = 1, limit: number = 20) {
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -1215,9 +1243,14 @@ export async function getFollowingFeed(page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit
 
     // First, get the list of followed user IDs
-    const followedUserIds = await getFollowedUserIds(user.id)
+    const { data: followsData } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
     
-    // Build the query based on whether user follows anyone
+    const followedUserIds = followsData?.map(follow => follow.following_id) || []
+
+    // Get all posts from followed users and own posts (without privacy filtering in query)
     let query = supabase
       .from('posts')
       .select(`
@@ -1227,10 +1260,9 @@ export async function getFollowingFeed(page: number = 1, limit: number = 20) {
         saves(user_id)
       `)
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
 
     if (followedUserIds.length > 0) {
-      // User follows others: get posts from followed users AND own posts
+      // Get own posts and posts from followed users
       query = query.or(`creator_id.eq.${user.id},creator_id.in.(${followedUserIds.join(',')})`)
     } else {
       // User doesn't follow anyone: only get own posts
@@ -1241,10 +1273,32 @@ export async function getFollowingFeed(page: number = 1, limit: number = 20) {
 
     if (error) throw error
     
+    // Client-side privacy filtering
+    const filteredData = data?.filter(post => {
+      const creator = post.creator;
+      
+      // Always show own posts
+      if (creator.id === user.id) return true;
+      
+      // For others' posts, check privacy settings
+      if (creator.privacy_setting === 'private') return false;
+      
+      // For followers_only, check if current user follows the creator
+      if (creator.privacy_setting === 'followers_only') {
+        return followedUserIds.includes(creator.id);
+      }
+      
+      // Public posts are always visible
+      return true;
+    }) || [];
+
+    // Apply pagination after filtering
+    const paginatedData = filteredData.slice(offset, offset + limit);
+    
     // Add comment counts to posts
-    if (data) {
+    if (paginatedData.length > 0) {
       const postsWithCommentCounts = await Promise.all(
-        data.map(async (post) => {
+        paginatedData.map(async (post) => {
           const { count } = await supabase
             .from('comments')
             .select('*', { count: 'exact', head: true })
@@ -1261,28 +1315,10 @@ export async function getFollowingFeed(page: number = 1, limit: number = 20) {
       return postsWithCommentCounts
     }
     
-    return data
+    return paginatedData
   } catch (error) {
     console.error('Error getting following feed:', error)
     throw error
-  }
-}
-
-// Helper function to get followed user IDs
-async function getFollowedUserIds(userId: string): Promise<string[]> {
-  try {
-    const { data, error } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', userId)
-
-    if (error) throw error
-    
-    // Return array of user IDs
-    return data?.map(follow => follow.following_id) || []
-  } catch (error) {
-    console.error('Error getting followed user IDs:', error)
-    return []
   }
 }
 
@@ -1291,6 +1327,7 @@ export async function updatePost(postId: string, post: {
   file?: File[]
   location?: string
   tags?: string[]
+  category?: string
 }) {
   try {
     let imageUrl: string | undefined
@@ -1321,6 +1358,7 @@ export async function updatePost(postId: string, post: {
     if (imageUrl !== undefined) updateData.image_url = imageUrl
     if (post.location !== undefined) updateData.location = post.location
     if (post.tags !== undefined) updateData.tags = post.tags
+    if (post.category !== undefined) updateData.category = post.category
 
     const { data, error } = await supabase
       .from('posts')

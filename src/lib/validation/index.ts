@@ -41,6 +41,7 @@ export const ProfileValidation = z.object({
   username: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email(),
   bio: z.string(),
+  privacy_setting: z.enum(["public", "private", "followers_only"]).optional(),
 });
 
 // ============================================================
@@ -51,6 +52,10 @@ export const PostValidation = z.object({
   file: z.custom<File[]>(),
   location: z.string().min(1, { message: "This field is required" }).max(1000, { message: "Maximum 1000 characters." }),
   tags: z.string(),
+  category: z.enum(["general", "announcement", "question"], { 
+    required_error: "Please select a category.",
+    invalid_type_error: "Please select a valid category." 
+  }),
 });
 
 export const CommentValidation = z.object({

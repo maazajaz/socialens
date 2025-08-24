@@ -19,6 +19,7 @@ import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import LinkifiedText from "@/components/shared/LinkifiedText";
 import LikedPosts from "./LikedPosts";
+import PrivacySettings from "@/components/shared/PrivacySettings";
 
 interface StabBlockProps {
   value: string | number;
@@ -39,6 +40,7 @@ type ProfileWrapperProps = {
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   const { user } = useUserContext();
   const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   
   const id = params?.id;
 
@@ -90,6 +92,20 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
           >
             <p className="flex whitespace-nowrap small-medium">Edit Profile</p>
           </Link>
+          <Button 
+            type="button" 
+            className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1 flex items-center justify-center gap-2" 
+            onClick={() => setShowPrivacySettings(!showPrivacySettings)}
+          >
+            <img 
+              src="/assets/icons/profile-placeholder.svg" 
+              alt="settings" 
+              width={16} 
+              height={16} 
+              className="invert-white"
+            />
+            <p className="flex whitespace-nowrap small-medium">Settings</p>
+          </Button>
           <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
             <p className="flex whitespace-nowrap small-medium">Share Profile</p>
           </Button>
@@ -164,6 +180,17 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
 
         <ActionButtons />
       </div>
+
+      {/* Privacy Settings Component */}
+      {isOwnProfile && showPrivacySettings && (
+        <div className="mt-6 mb-4 px-4 animate-in slide-in-from-top-2 duration-300">
+          <PrivacySettings 
+            currentPrivacy={currentUser.privacy_setting || 'public'}
+            userId={currentUser.id}
+            onClose={() => setShowPrivacySettings(false)}
+          />
+        </div>
+      )}
       
       {/* POSTS TABS - GAP REDUCED */}
       <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2"> {/* CHANGED: mt-3 pt-2 to mt-2 pt-2 */}

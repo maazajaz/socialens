@@ -17,6 +17,8 @@ import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import LinkifiedText from "@/components/shared/LinkifiedText";
 import LikedPosts from "./LikedPosts";
+import PrivacySettings from "@/components/shared/PrivacySettings";
+import { PRIVACY_SETTINGS } from "@/constants";
 
 interface StabBlockProps {
   value: string | number;
@@ -37,6 +39,7 @@ type ProfileWrapperProps = {
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   const { user } = useUserContext();
   const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   
   const id = params?.id;
 
@@ -131,6 +134,13 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
           >
             <p className="flex whitespace-nowrap small-medium">Edit Profile</p>
           </Link>
+          <Button 
+            type="button" 
+            className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" 
+            onClick={() => setShowPrivacySettings(!showPrivacySettings)}
+          >
+            <p className="flex whitespace-nowrap small-medium">Settings</p>
+          </Button>
           <Button type="button" className="h-10 bg-dark-4 px-4 text-light-1 rounded-lg hover:bg-dark-3 flex-1" onClick={handleShareProfile}>
             <p className="flex whitespace-nowrap small-medium">Share Profile</p>
           </Button>
@@ -181,6 +191,21 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
               @{currentUser.username}
             </p>
 
+            {/* Privacy indicator */}
+            {isOwnProfile && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-light-3">Privacy:</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm">
+                    {PRIVACY_SETTINGS.find(setting => setting.value === currentUser.privacy_setting)?.icon || "🌍"}
+                  </span>
+                  <span className="text-xs text-light-2 capitalize">
+                    {PRIVACY_SETTINGS.find(setting => setting.value === currentUser.privacy_setting)?.label || "Public"}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-4 sm:gap-6 mt-3">
               <StatBlock value={isPostsLoading ? "..." : userPosts?.length || 0} label="Posts" />
               <StatBlock value={followersLoading ? "..." : followersCount || 0} label="Followers" />
@@ -197,6 +222,16 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
         </div>
 
         <ActionButtons />
+        
+        {/* Privacy Settings Section - Only for own profile */}
+        {isOwnProfile && showPrivacySettings && (
+          <div className="w-full mt-4">
+            <PrivacySettings 
+              currentPrivacy={currentUser.privacy_setting || "public"} 
+              userId={currentUser.id} 
+            />
+          </div>
+        )}
       </div>
       
       <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2">
