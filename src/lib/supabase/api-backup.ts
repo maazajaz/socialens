@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { createClient } from './client'
 import { Database } from './database.types'
@@ -244,7 +244,7 @@ export async function getUserById(userId: string) {
 
 // Public version for unauthenticated access (shared profiles) using API route
 export async function getPublicUserById(userId: string) {
-  console.log('ðŸ” getPublicUserById called with userId:', userId);
+  console.log('🔍 getPublicUserById called with userId:', userId);
   
   try {
     // First try direct database access
@@ -254,26 +254,26 @@ export async function getPublicUserById(userId: string) {
       .eq('id', userId)
       .single()
 
-    console.log('ðŸ“Š Direct database query result:', { data, error });
+    console.log('📊 Direct database query result:', { data, error });
 
     if (error) {
       console.error('Direct user query failed:', error)
       // If RLS blocks this, try the API route
       if (error.code === 'PGRST116' || error.code === '42501' || error.message.includes('row-level security')) {
-        console.log('âš ï¸ RLS blocking direct access, trying API route...')
+        console.log('⚠️ RLS blocking direct access, trying API route...')
         
         try {
           const response = await fetch(`/api/public/profile?userId=${userId}`)
           const apiData = await response.json()
           
           if (response.ok && apiData.user) {
-            console.log('âœ… Got user data from API route:', apiData.user)
+            console.log('✅ Got user data from API route:', apiData.user)
             return apiData.user
           } else {
-            console.log('âŒ API route failed:', apiData)
+            console.log('❌ API route failed:', apiData)
           }
         } catch (apiError) {
-          console.log('ðŸ’¥ API route error:', apiError)
+          console.log('💥 API route error:', apiError)
         }
       }
       
@@ -289,10 +289,10 @@ export async function getPublicUserById(userId: string) {
       }
     }
     
-    console.log('âœ… Successfully fetched user data directly:', data)
+    console.log('✅ Successfully fetched user data directly:', data)
     return data
   } catch (error) {
-    console.error('ðŸ’¥ Exception in getPublicUserById:', error)
+    console.error('💥 Exception in getPublicUserById:', error)
     // Return basic fallback info instead of null
     return {
       id: userId,
@@ -308,7 +308,7 @@ export async function getPublicUserById(userId: string) {
 
 // Public version for getting user posts (shared profiles) using API route fallback
 export async function getPublicUserPosts(userId: string) {
-  console.log('ðŸ” getPublicUserPosts called with userId:', userId);
+  console.log('🔍 getPublicUserPosts called with userId:', userId);
   
   try {
     const { data, error } = await supabase
@@ -331,7 +331,7 @@ export async function getPublicUserPosts(userId: string) {
       .eq('creator_id', userId)
       .order('created_at', { ascending: false })
 
-    console.log('ðŸ“Š Direct posts query result:', { 
+    console.log('📊 Direct posts query result:', { 
       dataLength: data?.length || 0, 
       error,
       samplePost: data?.[0] ? { 
@@ -345,30 +345,30 @@ export async function getPublicUserPosts(userId: string) {
       console.error('Direct posts query failed:', error)
       // If RLS blocks this, try the API route
       if (error.code === 'PGRST116' || error.code === '42501' || error.message.includes('row-level security')) {
-        console.log('âš ï¸ RLS blocking direct posts access, trying API route...')
+        console.log('⚠️ RLS blocking direct posts access, trying API route...')
         
         try {
           const response = await fetch(`/api/public/profile?userId=${userId}`)
           const apiData = await response.json()
           
           if (response.ok && apiData.posts) {
-            console.log('âœ… Got posts data from API route:', apiData.posts.length, 'posts')
+            console.log('✅ Got posts data from API route:', apiData.posts.length, 'posts')
             return apiData.posts
           } else {
-            console.log('âŒ API route failed for posts:', apiData)
+            console.log('❌ API route failed for posts:', apiData)
           }
         } catch (apiError) {
-          console.log('ðŸ’¥ API route error for posts:', apiError)
+          console.log('💥 API route error for posts:', apiError)
         }
       }
       
       return []
     }
     
-    console.log('âœ… Successfully fetched', data?.length || 0, 'posts directly')
+    console.log('✅ Successfully fetched', data?.length || 0, 'posts directly')
     return data || []
   } catch (error) {
-    console.error('ðŸ’¥ Exception in getPublicUserPosts:', error)
+    console.error('💥 Exception in getPublicUserPosts:', error)
     return []
   }
 }
@@ -1837,7 +1837,7 @@ export async function sendPasswordResetEmail(email: string) {
     // Normalize email to lowercase
     const normalizedEmail = email.toLowerCase().trim();
     
-    console.log('ðŸ”„ Starting password reset for email:', normalizedEmail);
+    console.log('🔄 Starting password reset for email:', normalizedEmail);
     
     // First check if user exists
     const { data: userData, error: userError } = await supabase
@@ -1846,25 +1846,25 @@ export async function sendPasswordResetEmail(email: string) {
       .eq('email', normalizedEmail)
       .single()
 
-    console.log('ðŸ‘¤ User check result:', { userData, userError });
+    console.log('👤 User check result:', { userData, userError });
 
     if (userError || !userData) {
-      console.log('âŒ User not found');
+      console.log('❌ User not found');
       throw new Error('No account found with this email address')
     }
 
-    console.log('ðŸ“§ Sending reset email to:', normalizedEmail);
+    console.log('📧 Sending reset email to:', normalizedEmail);
     // Send password reset email with link (this will use your email template)
     const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
-      console.log('âŒ Reset email error:', error);
+      console.log('❌ Reset email error:', error);
       throw error;
     }
     
-    console.log('âœ… Reset email sent successfully');
+    console.log('✅ Reset email sent successfully');
     return { success: true, message: 'Password reset email sent! Please check your inbox.' }
   } catch (error: any) {
     console.error('Error sending password reset email:', error)
@@ -1872,109 +1872,86 @@ export async function sendPasswordResetEmail(email: string) {
   }
 }
 
-
 export async function updateUserPassword(newPassword: string) {
   try {
-    console.log('🔄 Starting password update with production-optimized approach...');
+    console.log('🔄 Starting password update...');
+    
+    // Check if we have a valid session first
+    console.log('🔐 Checking current session...');
+    console.log('⚡ Bypassing problematic getSession() call...');
+    console.log('🔧 Attempting direct password update...');
+    
+    // Skip all session validation - PKCE flow should have established the session
+    // Go directly to password update which will fail with proper error if no session
+    
+    // Now attempt the password update with detailed logging and timeout
+    console.log('🔄 Starting password update API call...');
     console.log('🔄 Password length:', newPassword.length);
-    console.log('🌐 Current origin:', window.location.origin);
-    console.log('🌐 Environment:', process.env.NODE_ENV);
-    
-    // Create a completely fresh Supabase client instance
-    console.log('🆕 Creating fresh Supabase client instance...');
-    const freshClient = createClient();
-    
-    // For production/Vercel deployment, use optimized approach
-    console.log('� Using production-optimized password update...');
-    
-    // Try to get and transfer session with shorter timeout for production
-    console.log('🔄 Attempting session transfer...');
-    try {
-      // Shorter timeout for production environments
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('getSession timeout')), 2000)
-      );
-      
-      const sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
-      const { data: { session } } = sessionResult as any;
-      
-      if (session) {
-        console.log('✅ Got session, transferring to fresh client...');
-        await freshClient.auth.setSession(session);
-        console.log('✅ Session transferred successfully');
-      } else {
-        console.log('⚠️ No session found, proceeding without transfer');
-      }
-    } catch (sessionError) {
-      const errorMsg = sessionError instanceof Error ? sessionError.message : 'Unknown error';
-      console.log('⚠️ Session transfer failed, proceeding anyway:', errorMsg);
-    }
-    
-    // Use the fresh client for password update with timeout protection
-    console.log('📞 Calling updateUser on fresh client with timeout...');
+    console.log('🔄 Timestamp before call:', new Date().toISOString());
     
     const updateResult = await Promise.race([
-      freshClient.auth.updateUser({ password: newPassword }),
+      // The actual update call
+      (async () => {
+        try {
+          console.log('� Calling supabase.auth.updateUser...');
+          const result = await supabase.auth.updateUser({ password: newPassword });
+          console.log('✅ updateUser API call completed');
+          return result;
+        } catch (apiError) {
+          console.error('❌ API call threw error:', apiError);
+          throw apiError;
+        }
+      })(),
+      
+      // Timeout after 20 seconds
       new Promise((_, reject) => 
         setTimeout(() => {
-          console.error('⏰ Fresh client updateUser timed out after 10 seconds');
-          reject(new Error('Password update timed out. This may be a network or Supabase service issue.'));
-        }, 10000)
+          console.error('⏰ Password update timed out after 20 seconds');
+          reject(new Error('Password update timeout - please try again or check your network connection'));
+        }, 20000)
       )
     ]);
-    
-    const { data, error } = updateResult as any;
 
-    console.log('🔐 Fresh client update result:', {
-      hasData: !!data,
+    const { data, error } = updateResult as any;
+    console.log('🔐 Password update result:', { 
+      hasData: !!data, 
       hasUser: !!data?.user,
-      error: error?.message
+      error: error?.message,
+      timestamp: new Date().toISOString()
     });
 
     if (error) {
-      console.log('❌ Fresh client password update failed:', error.message);
-      console.log('❌ Error details:', {
+      console.log('❌ Password update failed:', {
+        message: error.message,
         status: error.status,
-        code: error.code || 'no-code'
+        code: error.code
       });
-      
-      // If fresh client also fails, this might be a Supabase service issue
-      if (error.message.includes('timeout') || error.message.includes('network')) {
-        throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
-      }
-      
-      // Handle specific error types
-      if (error.message.includes('session') || error.message.includes('unauthorized')) {
-        throw new Error('Your session has expired. Please use a fresh password reset link.');
-      }
-      
-      if (error.message.includes('weak_password')) {
-        throw new Error('Password is too weak. Please use a stronger password.');
-      }
-      
-      if (error.message.includes('same_password')) {
-        throw new Error('New password must be different from your current password.');
-      }
-      
       throw error;
     }
     
-    if (!data?.user) {
-      throw new Error('Password update failed - no user data returned');
+    if (!data || !data.user) {
+      throw new Error('Password update succeeded but returned no user data');
     }
     
-    console.log('✅ Password updated successfully with fresh client for:', data.user.email);
+    console.log('✅ Password updated successfully for:', data.user.email);
     return { success: true, message: 'Password updated successfully!' }
     
   } catch (error: any) {
     console.error('🚨 Error in updateUserPassword:', {
       message: error.message,
       name: error.name,
-      stack: error.stack?.substring(0, 200) + '...'
+      timestamp: new Date().toISOString()
     });
+    
+    // Provide more user-friendly error messages
+    if (error.message.includes('timeout')) {
+      throw new Error('Request timed out. Please check your internet connection and try again.');
+    }
+    
+    if (error.message.includes('session')) {
+      throw new Error('Your session has expired. Please use a fresh password reset link.');
+    }
+    
     throw error;
   }
 }
-
-

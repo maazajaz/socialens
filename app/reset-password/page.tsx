@@ -185,9 +185,13 @@ function ResetPasswordForm() {
   // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async (values: ResetPasswordFormData) => {
-      return await updateUserPassword(values.password);
+      console.log('🚀 Reset password mutation called with:', { passwordLength: values.password.length });
+      const result = await updateUserPassword(values.password);
+      console.log('✅ Reset password mutation completed:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('🎉 Reset password mutation succeeded:', data);
       setSuccess(true);
       toast({
         title: "Password updated successfully! 🎉",
@@ -200,6 +204,7 @@ function ResetPasswordForm() {
       }, 3000);
     },
     onError: (error: any) => {
+      console.log('❌ Reset password mutation failed:', error);
       toast({
         title: "Error updating password",
         description: error.message || "Please try again.",
