@@ -68,18 +68,9 @@ const ResetPasswordContent = () => {
         console.log('Search params:', window.location.search);
         console.log('Hash:', window.location.hash);
         
-        // Check for existing session first
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (session && !sessionError) {
-          console.log('Found existing valid session:', session);
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-          return;
-        }
-        
-        // Check URL parameters for error states
+        // Check URL parameters for code (PKCE flow) or error states
         const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
         const error = urlParams.get('error');
         const errorCode = urlParams.get('error_code');
         const errorDescription = urlParams.get('error_description');
@@ -95,7 +86,34 @@ const ResetPasswordContent = () => {
           return;
         }
         
-        // Check for hash tokens (email link flow)
+        if (code) {
+          console.log('Found code parameter, exchanging for session...');
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          
+          if (!error && data.session) {
+            console.log('Session established successfully from code!');
+            setIsSessionValid(true);
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setIsCheckingSession(false);
+            return;
+          } else {
+            console.error('Error exchanging code for session:', error);
+          }
+        }
+        
+        // Check for existing session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (session && !sessionError) {
+          console.log('Found existing valid session:', session);
+          setIsSessionValid(true);
+          setIsCheckingSession(false);
+          return;
+        }
+        
+        // Check for hash tokens (fallback for older auth flow)
         const hash = window.location.hash;
         if (hash && hash.length > 1) {
           console.log('Found hash in URL, processing tokens...');
@@ -357,9 +375,6 @@ export default function ResetPassword() {
       <div className="min-h-screen flex">
         {/* Left side - Form */}
         <section className="flex flex-1 justify-center items-center flex-col py-10">
-          <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', padding: '10px', zIndex: 9999 }}>
-            DEBUG: Reset Password Page Loaded
-          </div>
           <Suspense fallback={<div>Loading...</div>}>
             <ResetPasswordContent />
           </Suspense>
