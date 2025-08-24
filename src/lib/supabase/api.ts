@@ -1840,9 +1840,13 @@ export async function sendPasswordResetOTP(email: string) {
       throw new Error('No account found with this email address')
     }
 
-    // Send password reset email with link
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/reset-password`
+    // Send password reset email with magic link (much simpler approach)
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email,
+      options: {
+        shouldCreateUser: false, // Don't create new user, just send link
+        emailRedirectTo: `${getAppUrl()}/update-password`
+      }
     })
 
     if (error) throw error
