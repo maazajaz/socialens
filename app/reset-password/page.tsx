@@ -327,11 +327,39 @@ const ResetPasswordContent = () => {
 };
 
 export default function ResetPassword() {
+  useEffect(() => {
+    console.log('Reset password page mounted');
+    console.log('Current pathname:', window.location.pathname);
+    console.log('Current href:', window.location.href);
+    
+    // Prevent any redirects for 5 seconds to debug
+    const originalPush = window.history.pushState;
+    const originalReplace = window.history.replaceState;
+    
+    window.history.pushState = function(...args) {
+      console.log('History push intercepted:', args);
+      return originalPush.apply(this, args);
+    };
+    
+    window.history.replaceState = function(...args) {
+      console.log('History replace intercepted:', args);
+      return originalReplace.apply(this, args);
+    };
+    
+    return () => {
+      window.history.pushState = originalPush;
+      window.history.replaceState = originalReplace;
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen flex">
         {/* Left side - Form */}
         <section className="flex flex-1 justify-center items-center flex-col py-10">
+          <div style={{ position: 'fixed', top: 0, left: 0, background: 'red', color: 'white', padding: '10px', zIndex: 9999 }}>
+            DEBUG: Reset Password Page Loaded
+          </div>
           <Suspense fallback={<div>Loading...</div>}>
             <ResetPasswordContent />
           </Suspense>
