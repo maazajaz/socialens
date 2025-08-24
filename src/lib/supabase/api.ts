@@ -3,7 +3,6 @@
 import { createClient } from './client'
 import { Database } from './database.types'
 import { NotificationService } from '../utils/notificationService'
-import { getAppUrl } from '../config'
 
 export type User = Database['public']['Tables']['users']['Row']
 export type Post = Database['public']['Tables']['posts']['Row'] & {
@@ -1840,31 +1839,76 @@ export async function sendPasswordResetOTP(email: string) {
       throw new Error('No account found with this email address')
     }
 
-    // Send password reset email with magic link (much simpler approach)
+    // Send OTP for password recovery
     const { error } = await supabase.auth.signInWithOtp({
       email: email,
       options: {
-        shouldCreateUser: false, // Don't create new user, just send link
-        emailRedirectTo: `${getAppUrl()}/update-password`
+        shouldCreateUser: false, // Don't create new user
+        data: {
+          type: 'recovery' // Mark this as password recovery
+        }
       }
     })
 
     if (error) throw error
     
-    return { success: true, message: 'Password reset link sent to your email' }
+    return { success: true, message: 'Password reset code sent to your email' }
   } catch (error: any) {
-    console.error('Error sending password reset email:', error)
+    console.error('Error sending password reset OTP:', error)
     throw error
   }
 }
 
 export async function verifyPasswordResetOTP(email: string, token: string, newPassword: string) {
   try {
-    const { error } = await supabase.auth.verifyOtp({
+    // Verify the OTP token
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
       email,
       token,
-      type: 'recovery'
+      type: 'email'
     })
+
+    if (verifyError || !data.user) {
+      throw new Error('Invalid or expired reset code')
+    }
+
+    // Update the password after successful OTP verification
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+
+    if (updateError) {
+      throw new Error('Failed to update password')
+    }
+
+    return { success: true, message: 'Password updated successfully' }
+  } catch (error: any) {
+    console.error('Error verifying password reset OTP:', error)
+    throw error
+  }
+}
+
+    if (updateError) {
+      throw new Error('Failed to update password')
+    }
+
+    return { success: true, message: 'Password updated successfully' }
+  } catch (error: any) {
+    console.error('Error verifying password reset OTP:', error)
+    throw error
+  }
+}
+      }
+    })
+
+    if (error) throw error
+    
+    return { success: true, message: 'Password reset code sent to your email' }
+  } catch (error: any) {
+    console.error('Error sending password reset OTP:', error)
+    throw error
+  }
+}
 
     if (error) throw error
 
