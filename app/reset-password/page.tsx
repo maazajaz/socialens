@@ -40,43 +40,17 @@ const ResetPasswordContent = () => {
   });
 
   useEffect(() => {
-    const handleAuthStateChange = () => {
-      supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event, session);
-        
-        if (event === 'PASSWORD_RECOVERY') {
-          console.log('Password recovery detected');
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-        } else if (session) {
-          console.log('Session exists, checking if it\'s a password recovery');
-          // Check if this is a password recovery session
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-        } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-          setIsSessionValid(false);
-          setIsCheckingSession(false);
-        }
-      });
-    };
-
     const validateSession = async () => {
       try {
         console.log('Starting session validation...');
-        console.log('Current URL:', window.location.href);
-        console.log('Search params:', window.location.search);
-        console.log('Hash:', window.location.hash);
         
-        // Check URL parameters for code (PKCE flow) or error states
+        // Check URL parameters for error states
         const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
         const error = urlParams.get('error');
-        const errorCode = urlParams.get('error_code');
         const errorDescription = urlParams.get('error_description');
         
         if (error) {
-          console.log('Error in URL:', { error, errorCode, errorDescription });
+          console.log('Error in URL:', { error, errorDescription });
           toast({
             title: "Reset link expired",
             description: errorDescription || "Your password reset link has expired. Please request a new one.",
@@ -86,20 +60,36 @@ const ResetPasswordContent = () => {
           return;
         }
         
-        if (code) {
-          console.log('Found code parameter, exchanging for session...');
-          // Exchange the code for a session
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        // Process the URL hash which contains the auth tokens for password recovery
+        const hash = window.location.hash;
+        
+        if (hash && hash.length > 1) {
+          console.log('Found hash in URL, processing tokens...');
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const tokenType = hashParams.get('token_type');
+          const type = hashParams.get('type');
           
-          if (!error && data.session) {
-            console.log('Session established successfully from code!');
-            setIsSessionValid(true);
-            // Clean up URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-            setIsCheckingSession(false);
-            return;
-          } else {
-            console.error('Error exchanging code for session:', error);
+          console.log('Hash parameters:', { accessToken: !!accessToken, refreshToken: !!refreshToken, tokenType, type });
+          
+          if (accessToken && type === 'recovery') {
+            console.log('Setting session from password recovery tokens...');
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (!error && data.session) {
+              console.log('Password recovery session set successfully!');
+              setIsSessionValid(true);
+              // Clean up URL hash
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setIsCheckingSession(false);
+              return;
+            } else {
+              console.error('Error setting session from tokens:', error);
+            }
           }
         }
         
@@ -107,36 +97,22 @@ const ResetPasswordContent = () => {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (session && !sessionError) {
-          console.log('Found existing valid session:', session);
+          console.log('Found existing valid session');
           setIsSessionValid(true);
           setIsCheckingSession(false);
           return;
         }
         
-        // Check for hash tokens (fallback for older auth flow)
-        const hash = window.location.hash;
-        if (hash && hash.length > 1) {
-          console.log('Found hash in URL, processing tokens...');
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          
-          if (accessToken) {
-            console.log('Setting session from URL tokens...');
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
-            
-            if (!error && data.session) {
-              console.log('Session set successfully!');
-              setIsSessionValid(true);
-              // Clean up URL
-              window.history.replaceState({}, document.title, window.location.pathname);
-              setIsCheckingSession(false);
-              return;
-            }
-          }
+        // If no hash and no session, redirect to forgot password
+        if (!hash || hash.length <= 1) {
+          console.log('No authentication tokens found, redirecting to forgot password');
+          toast({
+            title: "Invalid reset link",
+            description: "Please use the reset link from your email or request a new one.",
+            variant: "destructive",
+          });
+          router.push('/forgot-password');
+          return;
         }
         
         // No valid session found
@@ -151,8 +127,27 @@ const ResetPasswordContent = () => {
       }
     };
 
-    handleAuthStateChange();
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
+      
+      if (event === 'PASSWORD_RECOVERY') {
+        console.log('Password recovery event detected');
+        setIsSessionValid(true);
+        setIsCheckingSession(false);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('Token refreshed, session valid');
+        setIsSessionValid(true);
+        setIsCheckingSession(false);
+      }
+    });
+
     validateSession();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [supabase.auth, toast, router]);
 
   const resetPasswordMutation = useMutation({
