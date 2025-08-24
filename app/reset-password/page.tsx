@@ -43,6 +43,8 @@ const ResetPasswordContent = () => {
     const validateSession = async () => {
       try {
         console.log('Starting session validation...');
+        console.log('Current URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
         
         // Clear any corrupted local storage that might cause cookie parsing issues
         try {
@@ -64,7 +66,62 @@ const ResetPasswordContent = () => {
           console.log('Storage cleanup error:', storageError);
         }
 
-        // Check for existing session (should be set by callback route or existing auth)
+        // Check for URL hash fragments first (password recovery uses this)
+        const hash = window.location.hash;
+        
+        if (hash && hash.length > 1) {
+          console.log('Found hash in URL, processing recovery tokens...');
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          const tokenType = hashParams.get('token_type');
+          const type = hashParams.get('type');
+          
+          console.log('Hash parameters:', { 
+            accessToken: accessToken ? accessToken.substring(0, 20) + '...' : null, 
+            refreshToken: !!refreshToken, 
+            tokenType, 
+            type 
+          });
+          
+          if (accessToken && type === 'recovery') {
+            console.log('Setting session from password recovery tokens...');
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (!error && data.session) {
+              console.log('Password recovery session set successfully!');
+              setIsSessionValid(true);
+              setIsCheckingSession(false);
+              // Clean up URL hash
+              window.history.replaceState({}, document.title, window.location.pathname);
+              return;
+            } else {
+              console.error('Error setting session from recovery tokens:', error);
+            }
+          } else if (accessToken) {
+            console.log('Setting session from access token (no type specified)...');
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (!error && data.session) {
+              console.log('Session set successfully from hash tokens!');
+              setIsSessionValid(true);
+              setIsCheckingSession(false);
+              // Clean up URL hash
+              window.history.replaceState({}, document.title, window.location.pathname);
+              return;
+            } else {
+              console.error('Error setting session from hash tokens:', error);
+            }
+          }
+        }
+
+        // Check for existing session (fallback)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (session && !sessionError) {
@@ -103,18 +160,18 @@ const ResetPasswordContent = () => {
           }
         }
         
-        // If no valid session, check URL for direct access
+        // If no hash and no session, show instructions
         const currentUrl = window.location.href;
         const hasAuthParams = currentUrl.includes('code=') || currentUrl.includes('access_token') || currentUrl.includes('#');
         
         if (!hasAuthParams) {
           console.log('Direct access to reset page without auth parameters');
-          throw new Error('Direct access not allowed');
+          throw new Error('Please use the reset link from your email');
         }
         
         // If we reach here, there should be auth params but no session - something went wrong
         console.log('Auth parameters present but no valid session');
-        throw new Error('Authentication failed');
+        throw new Error('Authentication failed - please try a new reset link');
         
       } catch (error) {
         console.error('Session validation error:', error);
@@ -131,15 +188,15 @@ const ResetPasswordContent = () => {
         
         // Redirect to forgot password with helpful message
         toast({
-          title: "Reset session expired",
-          description: "Please request a new password reset link from your email.",
+          title: "Reset session issue",
+          description: error instanceof Error ? error.message : "Please request a new password reset link.",
           variant: "destructive",
         });
         
         // Add a small delay to show the toast
         setTimeout(() => {
           router.push('/forgot-password');
-        }, 1000);
+        }, 1500);
       }
     };
 
@@ -148,11 +205,11 @@ const ResetPasswordContent = () => {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in successfully');
+        console.log('User signed in successfully via auth state change');
         setIsSessionValid(true);
         setIsCheckingSession(false);
       } else if (event === 'PASSWORD_RECOVERY' && session) {
-        console.log('Password recovery session established');
+        console.log('Password recovery session established via auth state change');
         setIsSessionValid(true);
         setIsCheckingSession(false);
       } else if (event === 'SIGNED_OUT') {
