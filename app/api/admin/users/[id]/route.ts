@@ -4,9 +4,10 @@ import { createClient } from '../../../../../src/lib/supabase/server';
 
 // GET /api/admin/users/[id] - Get user details
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Check admin access
     const hasAdminAccess = await checkAdminAccess();
@@ -31,7 +32,7 @@ export async function GET(
         created_at,
         updated_at
       `)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single();
 
     if (error) {
@@ -44,9 +45,9 @@ export async function GET(
 
     // Get user statistics
     const [postsResult, followersResult, followingResult] = await Promise.allSettled([
-      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('creator_id', params.id),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', params.id),
-      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', params.id)
+      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('creator_id', resolvedParams.id),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', resolvedParams.id),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', resolvedParams.id)
     ]);
 
     const stats = {
@@ -71,9 +72,10 @@ export async function GET(
 
 // DELETE /api/admin/users/[id] - Deactivate user
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Check admin access
     const hasAdminAccess = await checkAdminAccess();
@@ -88,7 +90,7 @@ export async function DELETE(
     
     // Get current admin user to prevent self-deactivation
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser?.id === params.id) {
+    if (currentUser?.id === resolvedParams.id) {
       return NextResponse.json(
         { error: 'Cannot deactivate your own account' },
         { status: 400 }
@@ -99,7 +101,7 @@ export async function DELETE(
     const { data: targetUser, error: fetchError } = await supabase
       .from('users')
       .select('id, email, is_admin')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single();
 
     if (fetchError || !targetUser) {
@@ -129,7 +131,7 @@ export async function DELETE(
         email: deactivatedEmail,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id);
+      .eq('id', resolvedParams.id);
 
     if (updateError) {
       console.error('Error deactivating user:', updateError);
@@ -141,7 +143,7 @@ export async function DELETE(
 
     return NextResponse.json({
       message: 'User deactivated successfully',
-      userId: params.id
+      userId: resolvedParams.id
     });
 
   } catch (error) {

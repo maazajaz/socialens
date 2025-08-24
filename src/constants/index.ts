@@ -39,6 +39,10 @@ export const sidebarLinks = [
     bio: null,
     image_url: null,
     created_at: "",
+    is_admin: null,
+    is_active: null,
+    is_deactivated: null,
+    last_active: null,
   };
 
   export const bottombarLinks = [

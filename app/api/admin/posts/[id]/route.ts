@@ -4,9 +4,10 @@ import { createClient } from '../../../../../src/lib/supabase/server';
 
 // DELETE /api/admin/posts/[id] - Delete any post
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     // Check admin access
     const hasAdminAccess = await checkAdminAccess();
@@ -23,7 +24,7 @@ export async function DELETE(
     const { data: post, error: fetchError } = await supabase
       .from('posts')
       .select('id, creator_id, image_url')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single();
 
     if (fetchError || !post) {
@@ -35,9 +36,9 @@ export async function DELETE(
 
     // Delete related data first (comments, likes, saves)
     const deletePromises = [
-      supabase.from('comments').delete().eq('post_id', params.id),
-      supabase.from('likes').delete().eq('post_id', params.id),
-      supabase.from('saves').delete().eq('post_id', params.id)
+      supabase.from('comments').delete().eq('post_id', resolvedParams.id),
+      supabase.from('likes').delete().eq('post_id', resolvedParams.id),
+      supabase.from('saves').delete().eq('post_id', resolvedParams.id)
     ];
 
     try {
@@ -70,7 +71,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from('posts')
       .delete()
-      .eq('id', params.id);
+      .eq('id', resolvedParams.id);
 
     if (deleteError) {
       console.error('Error deleting post:', deleteError);
@@ -82,7 +83,7 @@ export async function DELETE(
 
     return NextResponse.json({
       message: 'Post deleted successfully',
-      postId: params.id
+      postId: resolvedParams.id
     });
 
   } catch (error) {

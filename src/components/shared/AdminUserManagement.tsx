@@ -27,22 +27,6 @@ interface AdminUser {
   created_at: string;
 }
 
-interface AdminPost {
-  id: string;
-  caption: string;
-  image_url: string;
-  location: string;
-  tags: string;
-  created_at: string;
-  updated_at: string;
-  creator: {
-    id: string;
-    name: string;
-    username: string;
-    image_url: string;
-  };
-}
-
 const AdminUserManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
