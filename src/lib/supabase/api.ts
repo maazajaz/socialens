@@ -1842,7 +1842,7 @@ export async function sendPasswordResetOTP(email: string) {
 
     // Send password reset email with link
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getAppUrl()}/reset-password`
+      redirectTo: `${getAppUrl()}/auth/callback?next=/reset-password`
     })
 
     if (error) throw error

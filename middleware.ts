@@ -21,6 +21,7 @@ export async function middleware(request: NextRequest) {
     '/sign-up',
     '/forgot-password',
     '/reset-password',
+    '/auth/callback',
     '/posts', // Allow public access to individual posts
     '/profile', // Allow public access to profiles
     '/shared-profile', // Allow public access to shared profiles

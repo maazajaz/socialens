@@ -44,96 +44,28 @@ const ResetPasswordContent = () => {
       try {
         console.log('Starting session validation...');
         
-        // Check URL parameters for error states
-        const urlParams = new URLSearchParams(window.location.search);
-        const error = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
-        
-        if (error) {
-          console.log('Error in URL:', { error, errorDescription });
-          toast({
-            title: "Reset link expired",
-            description: errorDescription || "Your password reset link has expired. Please request a new one.",
-            variant: "destructive",
-          });
-          router.push('/forgot-password');
-          return;
-        }
-        
-        // First check for existing session (most common case for password recovery)
+        // Check for existing session (should be set by callback route)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (session && !sessionError) {
           console.log('Found existing valid session');
-          
-          // Check if this is a recovery session by examining the JWT token
-          try {
-            const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-            console.log('JWT payload:', payload);
-            
-            if (payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery')) {
-              console.log('Valid password recovery session detected');
-              setIsSessionValid(true);
-              setIsCheckingSession(false);
-              
-              // Clean up URL parameters
-              const urlParams = new URLSearchParams(window.location.search);
-              if (urlParams.get('code')) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-              }
-              return;
-            }
-          } catch (jwtError) {
-            console.log('Could not parse JWT, treating as regular session');
-          }
-          
-          // Even if not a recovery session, if user is authenticated, allow password reset
           setIsSessionValid(true);
           setIsCheckingSession(false);
           return;
         }
         
-        // Process the URL hash which contains the auth tokens for password recovery
-        const hash = window.location.hash;
-        
-        if (hash && hash.length > 1) {
-          console.log('Found hash in URL, processing tokens...');
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          const tokenType = hashParams.get('token_type');
-          const type = hashParams.get('type');
-          
-          console.log('Hash parameters:', { accessToken: !!accessToken, refreshToken: !!refreshToken, tokenType, type });
-          
-          if (accessToken && type === 'recovery') {
-            console.log('Setting session from password recovery tokens...');
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
-            
-            if (!error && data.session) {
-              console.log('Password recovery session set successfully!');
-              setIsSessionValid(true);
-              // Clean up URL hash
-              window.history.replaceState({}, document.title, window.location.pathname);
-              setIsCheckingSession(false);
-              return;
-            } else {
-              console.error('Error setting session from tokens:', error);
-            }
-          }
-        }
-        
-        // No valid session found
-        console.log('No valid session found');
-        setIsSessionValid(false);
+        // No valid session found - redirect to forgot password
+        console.log('No valid session found, redirecting to forgot password');
+        toast({
+          title: "Session expired",
+          description: "Please request a new password reset link.",
+          variant: "destructive",
+        });
+        router.push('/forgot-password');
         
       } catch (error) {
         console.error('Session validation error:', error);
         setIsSessionValid(false);
-      } finally {
         setIsCheckingSession(false);
       }
     };
@@ -143,27 +75,11 @@ const ResetPasswordContent = () => {
       console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in, checking if recovery session');
-        
-        try {
-          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-          if (payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery')) {
-            console.log('Password recovery session established via auth state change');
-            setIsSessionValid(true);
-            setIsCheckingSession(false);
-          }
-        } catch (error) {
-          console.log('Could not parse JWT in auth state change');
-          // Still allow if user is signed in
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-        }
-      } else if (event === 'PASSWORD_RECOVERY') {
-        console.log('Password recovery event detected');
+        console.log('User signed in successfully');
         setIsSessionValid(true);
         setIsCheckingSession(false);
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        console.log('Token refreshed, session valid');
+      } else if (event === 'PASSWORD_RECOVERY' && session) {
+        console.log('Password recovery session established');
         setIsSessionValid(true);
         setIsCheckingSession(false);
       }
