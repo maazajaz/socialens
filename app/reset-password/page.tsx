@@ -44,29 +44,102 @@ const ResetPasswordContent = () => {
       try {
         console.log('Starting session validation...');
         
-        // Check for existing session (should be set by callback route)
+        // Clear any corrupted local storage that might cause cookie parsing issues
+        try {
+          if (typeof window !== 'undefined') {
+            const supabaseKeys = Object.keys(localStorage).filter(key => 
+              key.startsWith('sb-') || key.includes('supabase')
+            );
+            
+            // Check for any malformed data and clear if needed
+            for (const key of supabaseKeys) {
+              const value = localStorage.getItem(key);
+              if (value && (value.startsWith('base64-') || value.includes('"base64-'))) {
+                console.log('Clearing potentially corrupted storage key:', key);
+                localStorage.removeItem(key);
+              }
+            }
+          }
+        } catch (storageError) {
+          console.log('Storage cleanup error:', storageError);
+        }
+
+        // Check for existing session (should be set by callback route or existing auth)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (session && !sessionError) {
           console.log('Found existing valid session');
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-          return;
+          
+          // Additional check: ensure this is a recovery session or recently authenticated user
+          try {
+            const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+            const now = Math.floor(Date.now() / 1000);
+            const issuedAt = payload.iat;
+            const timeDiff = now - issuedAt;
+            
+            // Allow if it's a recovery session OR if the session was created recently (within last 30 minutes)
+            const isRecoverySession = payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery');
+            const isRecentSession = timeDiff < 1800; // 30 minutes
+            
+            console.log('Session check:', {
+              isRecoverySession,
+              isRecentSession,
+              timeDiffMinutes: Math.floor(timeDiff / 60)
+            });
+            
+            if (isRecoverySession || isRecentSession) {
+              console.log('Valid session for password reset');
+              setIsSessionValid(true);
+              setIsCheckingSession(false);
+              return;
+            } else {
+              console.log('Session too old for password reset, requesting new reset link');
+              throw new Error('Session expired for password reset');
+            }
+            
+          } catch (jwtError) {
+            console.log('Could not validate session timing, requesting new reset');
+            throw new Error('Invalid session for password reset');
+          }
         }
         
-        // No valid session found - redirect to forgot password
-        console.log('No valid session found, redirecting to forgot password');
-        toast({
-          title: "Session expired",
-          description: "Please request a new password reset link.",
-          variant: "destructive",
-        });
-        router.push('/forgot-password');
+        // If no valid session, check URL for direct access
+        const currentUrl = window.location.href;
+        const hasAuthParams = currentUrl.includes('code=') || currentUrl.includes('access_token') || currentUrl.includes('#');
+        
+        if (!hasAuthParams) {
+          console.log('Direct access to reset page without auth parameters');
+          throw new Error('Direct access not allowed');
+        }
+        
+        // If we reach here, there should be auth params but no session - something went wrong
+        console.log('Auth parameters present but no valid session');
+        throw new Error('Authentication failed');
         
       } catch (error) {
         console.error('Session validation error:', error);
+        
+        // Clear any potentially corrupted data
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch (signOutError) {
+          console.log('Error during cleanup signout:', signOutError);
+        }
+        
         setIsSessionValid(false);
         setIsCheckingSession(false);
+        
+        // Redirect to forgot password with helpful message
+        toast({
+          title: "Reset session expired",
+          description: "Please request a new password reset link from your email.",
+          variant: "destructive",
+        });
+        
+        // Add a small delay to show the toast
+        setTimeout(() => {
+          router.push('/forgot-password');
+        }, 1000);
       }
     };
 
@@ -82,6 +155,9 @@ const ResetPasswordContent = () => {
         console.log('Password recovery session established');
         setIsSessionValid(true);
         setIsCheckingSession(false);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+        setIsSessionValid(false);
       }
     });
 
@@ -144,16 +220,21 @@ const ResetPasswordContent = () => {
       <div className="flex-center size-full">
         <div className="flex-center flex-col">
           <h2 className="h3-bold md:h2-bold pt-5 sm:pt-12 text-center">
-            Session Expired
+            Authentication Required
           </h2>
-          <p className="text-light-3 small-medium md:base-regular mt-2 text-center">
-            Your password reset link has expired or is invalid.
+          <p className="text-light-3 small-medium md:base-regular mt-2 text-center max-w-md">
+            To reset your password, please click the reset link from your email.
             <br />
-            Please request a new password reset link.
+            If you don't have a reset link, request a new one below.
           </p>
           <Link href="/forgot-password" className="mt-4">
             <Button className="shad-button_primary">
-              Request New Link
+              Request Reset Link
+            </Button>
+          </Link>
+          <Link href="/sign-in" className="mt-2">
+            <Button variant="ghost" className="shad-button_ghost">
+              Back to Sign In
             </Button>
           </Link>
         </div>
