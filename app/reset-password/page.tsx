@@ -60,6 +60,39 @@ const ResetPasswordContent = () => {
           return;
         }
         
+        // First check for existing session (most common case for password recovery)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (session && !sessionError) {
+          console.log('Found existing valid session');
+          
+          // Check if this is a recovery session by examining the JWT token
+          try {
+            const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+            console.log('JWT payload:', payload);
+            
+            if (payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery')) {
+              console.log('Valid password recovery session detected');
+              setIsSessionValid(true);
+              setIsCheckingSession(false);
+              
+              // Clean up URL parameters
+              const urlParams = new URLSearchParams(window.location.search);
+              if (urlParams.get('code')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }
+              return;
+            }
+          } catch (jwtError) {
+            console.log('Could not parse JWT, treating as regular session');
+          }
+          
+          // Even if not a recovery session, if user is authenticated, allow password reset
+          setIsSessionValid(true);
+          setIsCheckingSession(false);
+          return;
+        }
+        
         // Process the URL hash which contains the auth tokens for password recovery
         const hash = window.location.hash;
         
@@ -93,28 +126,6 @@ const ResetPasswordContent = () => {
           }
         }
         
-        // Check for existing session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (session && !sessionError) {
-          console.log('Found existing valid session');
-          setIsSessionValid(true);
-          setIsCheckingSession(false);
-          return;
-        }
-        
-        // If no hash and no session, redirect to forgot password
-        if (!hash || hash.length <= 1) {
-          console.log('No authentication tokens found, redirecting to forgot password');
-          toast({
-            title: "Invalid reset link",
-            description: "Please use the reset link from your email or request a new one.",
-            variant: "destructive",
-          });
-          router.push('/forgot-password');
-          return;
-        }
-        
         // No valid session found
         console.log('No valid session found');
         setIsSessionValid(false);
@@ -129,9 +140,25 @@ const ResetPasswordContent = () => {
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session);
+      console.log('Auth state changed:', event, session?.user?.email);
       
-      if (event === 'PASSWORD_RECOVERY') {
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in, checking if recovery session');
+        
+        try {
+          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+          if (payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery')) {
+            console.log('Password recovery session established via auth state change');
+            setIsSessionValid(true);
+            setIsCheckingSession(false);
+          }
+        } catch (error) {
+          console.log('Could not parse JWT in auth state change');
+          // Still allow if user is signed in
+          setIsSessionValid(true);
+          setIsCheckingSession(false);
+        }
+      } else if (event === 'PASSWORD_RECOVERY') {
         console.log('Password recovery event detected');
         setIsSessionValid(true);
         setIsCheckingSession(false);
