@@ -127,7 +127,7 @@
   }
 
   .user-grid {
-    @apply w-full grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-7 max-w-5xl;
+    @apply w-full grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 xs:gap-6 md:gap-7 max-w-5xl;
   }
 
   /* Explore */
@@ -258,7 +258,7 @@
 
   /* User card */
   .user-card {
-    @apply flex-center flex-col gap-4 border border-dark-4 rounded-[20px] px-5 py-8;
+    @apply flex-center flex-col gap-3 xs:gap-4 border border-dark-4 rounded-[20px] px-3 xs:px-5 py-6 xs:py-8;
   }
 }
 

@@ -34,16 +34,84 @@ const supabase = createClient()
 // AUTH
 // ============================================================
 
+// Function to check if email or username already exists
+export async function checkEmailOrUsernameExists(email: string, username: string) {
+  try {
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedUsername = username.toLowerCase().trim();
+    
+    console.log('Checking if email/username exists:', { email: normalizedEmail, username: normalizedUsername });
+
+    // Check email in users table
+    const { data: emailCheck, error: emailError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', normalizedEmail)
+      .limit(1);
+
+    if (emailError) {
+      console.error('Error checking email:', emailError);
+      throw emailError;
+    }
+
+    // Check username in users table
+    const { data: usernameCheck, error: usernameError } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', normalizedUsername)
+      .limit(1);
+
+    if (usernameError) {
+      console.error('Error checking username:', usernameError);
+      throw usernameError;
+    }
+
+    const emailExists = emailCheck && emailCheck.length > 0;
+    const usernameExists = usernameCheck && usernameCheck.length > 0;
+
+    console.log('Check results:', { emailExists, usernameExists });
+
+    return {
+      emailExists,
+      usernameExists,
+      isAvailable: !emailExists && !usernameExists
+    };
+  } catch (error) {
+    console.error('Error in checkEmailOrUsernameExists:', error);
+    throw error;
+  }
+}
+
 export async function signUpUser(user: { name: string; email: string; password: string; username: string }) {
   try {
     // Normalize email to lowercase
     const normalizedEmail = user.email.toLowerCase().trim();
+    const normalizedUsername = user.username.toLowerCase().trim();
     
     console.log('Attempting to sign up user:', { 
       email: normalizedEmail, 
       name: user.name, 
-      username: user.username 
+      username: normalizedUsername 
     });
+
+    // Check if email or username already exists
+    const existenceCheck = await checkEmailOrUsernameExists(normalizedEmail, normalizedUsername);
+    
+    if (!existenceCheck.isAvailable) {
+      let errorMessage = '';
+      
+      if (existenceCheck.emailExists && existenceCheck.usernameExists) {
+        errorMessage = 'Both email and username are already registered. Please use different credentials.';
+      } else if (existenceCheck.emailExists) {
+        errorMessage = 'This email has already been registered. Please use a different email address.';
+      } else if (existenceCheck.usernameExists) {
+        errorMessage = 'This username has already been taken. Please choose a different username.';
+      }
+      
+      const availabilityError = new Error(errorMessage);
+      availabilityError.name = 'EmailOrUsernameExistsError';
+      throw availabilityError;
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
@@ -51,7 +119,7 @@ export async function signUpUser(user: { name: string; email: string; password: 
       options: {
         data: {
           name: user.name,
-          username: user.username,
+          username: normalizedUsername,
         }
       }
     })
@@ -91,9 +159,12 @@ export async function signUpUser(user: { name: string; email: string; password: 
             id: data.user.id,
             email: normalizedEmail,
             name: user.name,
-            username: user.username,
+            username: normalizedUsername,
             image_url: null,
-            bio: null
+            bio: null,
+            is_active: false, // Will be set to true when they actually log in
+            is_deactivated: false,
+            last_active: null // Will be set when they first log in
           }
         ])
       
@@ -167,6 +238,40 @@ export async function signInUser(user: { email: string; password: string }) {
       throw error;
     }
 
+    // Check if user is deactivated by checking the database
+    if (data.user) {
+      console.log('Checking if user is deactivated...');
+      
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_deactivated, is_active')
+        .eq('id', data.user.id)
+        .single();
+
+      if (userError) {
+        console.error('Error checking user status:', userError);
+        // Don't block login if we can't check status, but log the error
+      } else if (userData) {
+        if (userData.is_deactivated === true) {
+          console.log('User account is deactivated:', data.user.email);
+          
+          // Sign them out immediately
+          await supabase.auth.signOut();
+          
+          const deactivatedError = new Error('Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.');
+          deactivatedError.name = 'AccountDeactivatedError';
+          throw deactivatedError;
+        }
+        
+        // Set user as active since they just logged in successfully
+        console.log('Setting user as active...');
+        await supabase
+          .from('users')
+          .update({ is_active: true })
+          .eq('id', data.user.id);
+      }
+    }
+
     console.log('Sign in successful:', { user: data.user?.email });
     return data;
   } catch (error: any) {
@@ -177,11 +282,63 @@ export async function signInUser(user: { email: string; password: string }) {
 
 export async function signOutUser() {
   try {
+    // Get current user before signing out to update their active status
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Set user as inactive since they're logging out
+      await supabase
+        .from('users')
+        .update({ is_active: false })
+        .eq('id', user.id);
+    }
+
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   } catch (error) {
     console.error('Error signing out:', error)
     throw error
+  }
+}
+
+// Function to update user activity status (heartbeat)
+export async function updateUserActivity() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      await supabase
+        .from('users')
+        .update({ 
+          is_active: true,
+          last_active: new Date().toISOString()
+        })
+        .eq('id', user.id);
+    }
+  } catch (error) {
+    console.error('Error updating user activity:', error);
+    // Don't throw error - this is a background operation
+  }
+}
+
+// Function to set user as inactive when they go offline
+export async function setUserInactive(userId?: string) {
+  try {
+    let targetUserId = userId;
+    
+    if (!targetUserId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      targetUserId = user?.id;
+    }
+    
+    if (targetUserId) {
+      await supabase
+        .from('users')
+        .update({ is_active: false })
+        .eq('id', targetUserId);
+    }
+  } catch (error) {
+    console.error('Error setting user inactive:', error);
   }
 }
 
@@ -530,6 +687,29 @@ export async function getUsers(limit?: number) {
   }
 }
 
+export async function searchUsers(searchTerm: string, limit: number = 50) {
+  try {
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      return []
+    }
+
+    const trimmedSearch = searchTerm.trim()
+    
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .or(`name.ilike.%${trimmedSearch}%,username.ilike.%${trimmedSearch}%`)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error searching users:', error)
+    return []
+  }
+}
+
 // ============================================================
 // ADMIN STATISTICS
 // ============================================================
@@ -572,27 +752,39 @@ export async function getAdminUsers(): Promise<User[]> {
 
 // Check if user is admin (either initial admin or database admin)
 export async function isUserAdmin(userEmail?: string): Promise<boolean> {
-  if (!userEmail) return false;
+  if (!userEmail) {
+    console.log('isUserAdmin: No email provided');
+    return false;
+  }
+  
+  console.log('isUserAdmin: Checking admin status for:', userEmail);
+  console.log('isUserAdmin: Initial admin emails:', INITIAL_ADMIN_EMAILS);
   
   // Check if initial admin first
   if (INITIAL_ADMIN_EMAILS.includes(userEmail.toLowerCase())) {
+    console.log('isUserAdmin: User is initial admin');
     return true;
   }
 
   // Check database for admin status
   try {
+    console.log('isUserAdmin: Checking database for admin status');
     const { data, error } = await supabase
       .from('users')
       .select('is_admin')
       .eq('email', userEmail.toLowerCase())
       .single();
 
+    console.log('isUserAdmin: Database query result:', { data, error });
+
     if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
       console.error('Error checking admin status:', error);
       return false;
     }
 
-    return data?.is_admin === true;
+    const isAdmin = data?.is_admin === true;
+    console.log('isUserAdmin: Final result:', isAdmin);
+    return isAdmin;
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -708,10 +900,18 @@ export async function removeAdminUser(userId: string): Promise<boolean> {
 
 export async function checkAdminAccess(): Promise<boolean> {
   try {
+    console.log('checkAdminAccess: Starting admin access check');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) return false;
+    console.log('checkAdminAccess: Current user:', { id: user?.id, email: user?.email });
     
-    return await isUserAdmin(user.email);
+    if (!user?.email) {
+      console.log('checkAdminAccess: No user email found');
+      return false;
+    }
+    
+    const isAdmin = await isUserAdmin(user.email);
+    console.log('checkAdminAccess: isUserAdmin result:', isAdmin);
+    return isAdmin;
   } catch (error) {
     console.error('Error checking admin access:', error);
     return false;
@@ -1002,6 +1202,87 @@ export async function getUserPosts(userId: string) {
   } catch (error) {
     console.error('Error getting user posts:', error)
     throw error
+  }
+}
+
+// Get posts from followed users and own posts for the following feed
+// Automatically updates when user follows/unfollows someone via React Query invalidation
+export async function getFollowingFeed(page: number = 1, limit: number = 20) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const offset = (page - 1) * limit
+
+    // First, get the list of followed user IDs
+    const followedUserIds = await getFollowedUserIds(user.id)
+    
+    // Build the query based on whether user follows anyone
+    let query = supabase
+      .from('posts')
+      .select(`
+        *,
+        creator:users(*),
+        likes(user_id),
+        saves(user_id)
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (followedUserIds.length > 0) {
+      // User follows others: get posts from followed users AND own posts
+      query = query.or(`creator_id.eq.${user.id},creator_id.in.(${followedUserIds.join(',')})`)
+    } else {
+      // User doesn't follow anyone: only get own posts
+      query = query.eq('creator_id', user.id)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+    
+    // Add comment counts to posts
+    if (data) {
+      const postsWithCommentCounts = await Promise.all(
+        data.map(async (post) => {
+          const { count } = await supabase
+            .from('comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('post_id', post.id)
+          
+          return {
+            ...post,
+            _count: {
+              comments: count || 0
+            }
+          }
+        })
+      )
+      return postsWithCommentCounts
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Error getting following feed:', error)
+    throw error
+  }
+}
+
+// Helper function to get followed user IDs
+async function getFollowedUserIds(userId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', userId)
+
+    if (error) throw error
+    
+    // Return array of user IDs
+    return data?.map(follow => follow.following_id) || []
+  } catch (error) {
+    console.error('Error getting followed user IDs:', error)
+    return []
   }
 }
 
@@ -1973,6 +2254,317 @@ export async function updateUserPassword(newPassword: string) {
       name: error.name,
       stack: error.stack?.substring(0, 200) + '...'
     });
+    throw error;
+  }
+}
+
+// ============================================================
+// ADMIN MANAGEMENT FUNCTIONS
+// ============================================================
+
+// Get all users for admin management
+export async function getAdminAllUsers(page: number = 1, limit: number = 10, search: string = '') {
+  try {
+    console.log('getAdminAllUsers called with:', { page, limit, search });
+    
+    const hasAdminAccess = await checkAdminAccess();
+    console.log('Admin access check result:', hasAdminAccess);
+    
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    const offset = (page - 1) * limit;
+    
+    let query = supabase
+      .from('users')
+      .select(`
+        id,
+        name,
+        username,
+        email,
+        image_url,
+        bio,
+        is_admin,
+        is_active,
+        is_deactivated,
+        last_active,
+        created_at
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,username.ilike.%${search}%,email.ilike.%${search}%`);
+    }
+
+    query = query.range(offset, offset + limit - 1);
+
+    console.log('Executing query...');
+    const { data, error, count } = await query;
+    
+    if (error) {
+      console.error('Database query error:', error);
+      throw error;
+    }
+
+    console.log('Query successful, found:', count, 'users');
+    return {
+      users: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error getting all users for admin:', error);
+    throw error;
+  }
+}
+
+// Get user details for admin
+export async function getAdminUserDetails(userId: string) {
+  try {
+    const hasAdminAccess = await checkAdminAccess();
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        name,
+        username,
+        email,
+        image_url,
+        bio,
+        is_admin,
+        is_active,
+        is_deactivated,
+        last_active,
+        created_at
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+
+    // Get user statistics
+    const [postsResult, followersResult, followingResult] = await Promise.allSettled([
+      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('creator_id', userId),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId)
+    ]);
+
+    const stats = {
+      postsCount: postsResult.status === 'fulfilled' ? postsResult.value.count || 0 : 0,
+      followersCount: followersResult.status === 'fulfilled' ? followersResult.value.count || 0 : 0,
+      followingCount: followingResult.status === 'fulfilled' ? followingResult.value.count || 0 : 0
+    };
+
+    return { user, stats };
+  } catch (error) {
+    console.error('Error getting user details for admin:', error);
+    throw error;
+  }
+}
+
+// Toggle user activation status (admin only)
+export async function toggleUserActivation(userId: string) {
+  try {
+    const hasAdminAccess = await checkAdminAccess();
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    // Get current admin user to prevent self-deactivation
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser?.id === userId) {
+      throw new Error('Cannot modify your own account status');
+    }
+
+    // Get current user status
+    const { data: targetUser, error: fetchError } = await supabase
+      .from('users')
+      .select('id, email, is_admin, is_deactivated, is_active')
+      .eq('id', userId)
+      .single();
+
+    if (fetchError || !targetUser) {
+      throw new Error('User not found');
+    }
+
+    // Check if trying to deactivate another admin
+    if (targetUser.is_admin && !targetUser.is_deactivated) {
+      throw new Error('Cannot deactivate another admin user');
+    }
+
+    // Toggle the activation status
+    const newDeactivatedStatus = !targetUser.is_deactivated;
+    const newActiveStatus = !newDeactivatedStatus; // Active is opposite of deactivated
+    
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        is_deactivated: newDeactivatedStatus,
+        is_active: newActiveStatus
+      })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+
+    const action = newDeactivatedStatus ? 'deactivated' : 'activated';
+    return { 
+      success: true, 
+      message: `User ${action} successfully`,
+      isDeactivated: newDeactivatedStatus
+    };
+  } catch (error) {
+    console.error('Error toggling user activation:', error);
+    throw error;
+  }
+}
+
+// Legacy function for backward compatibility - now uses toggleUserActivation
+export async function deactivateUser(userId: string) {
+  try {
+    // Check current status first
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('is_deactivated')
+      .eq('id', userId)
+      .single();
+
+    if (!targetUser || targetUser.is_deactivated) {
+      throw new Error('User not found or already deactivated');
+    }
+
+    return await toggleUserActivation(userId);
+  } catch (error) {
+    console.error('Error deactivating user:', error);
+    throw error;
+  }
+}
+
+// Get all posts for admin management
+export async function getAdminAllPosts(page: number = 1, limit: number = 10, search: string = '') {
+  try {
+    console.log('getAdminAllPosts called with:', { page, limit, search });
+    
+    const hasAdminAccess = await checkAdminAccess();
+    console.log('Admin access check result for posts:', hasAdminAccess);
+    
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    const offset = (page - 1) * limit;
+    
+    let query = supabase
+      .from('posts')
+      .select(`
+        id,
+        caption,
+        image_url,
+        location,
+        tags,
+        created_at,
+        creator:users!creator_id (
+          id,
+          name,
+          username,
+          image_url
+        )
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`caption.ilike.%${search}%,location.ilike.%${search}%,tags.ilike.%${search}%`);
+    }
+
+    query = query.range(offset, offset + limit - 1);
+
+    console.log('Executing posts query...');
+    const { data, error, count } = await query;
+    
+    if (error) {
+      console.error('Database query error for posts:', error);
+      throw error;
+    }
+
+    console.log('Posts query successful, found:', count, 'posts');
+    return {
+      posts: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error getting all posts for admin:', error);
+    throw error;
+  }
+}
+
+// Delete post (admin only)
+export async function adminDeletePost(postId: string) {
+  try {
+    const hasAdminAccess = await checkAdminAccess();
+    if (!hasAdminAccess) {
+      throw new Error('Access denied. Admin privileges required.');
+    }
+
+    // Check if post exists
+    const { data: post, error: fetchError } = await supabase
+      .from('posts')
+      .select('id, creator_id, image_url')
+      .eq('id', postId)
+      .single();
+
+    if (fetchError || !post) {
+      throw new Error('Post not found');
+    }
+
+    // Delete related data first (comments, likes, saves)
+    const deletePromises = [
+      supabase.from('comments').delete().eq('post_id', postId),
+      supabase.from('likes').delete().eq('post_id', postId),
+      supabase.from('saves').delete().eq('post_id', postId)
+    ];
+
+    try {
+      await Promise.all(deletePromises);
+    } catch (relatedDeleteError) {
+      console.warn('Some related data could not be deleted:', relatedDeleteError);
+    }
+
+    // Delete the post image from storage if it exists
+    if (post.image_url) {
+      try {
+        const fileName = post.image_url.split('/').pop();
+        if (fileName) {
+          await supabase.storage.from('files').remove([fileName]);
+        }
+      } catch (storageDeleteError) {
+        console.warn('Error deleting image from storage:', storageDeleteError);
+      }
+    }
+
+    // Finally delete the post
+    const { error: deleteError } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', postId);
+
+    if (deleteError) throw deleteError;
+
+    return { success: true, message: 'Post deleted successfully' };
+  } catch (error) {
+    console.error('Error deleting post:', error);
     throw error;
   }
 }

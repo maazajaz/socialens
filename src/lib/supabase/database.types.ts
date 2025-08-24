@@ -10,6 +10,10 @@ export interface Database {
           username: string
           bio: string | null
           image_url: string | null
+          is_admin: boolean | null
+          is_active: boolean | null
+          is_deactivated: boolean | null
+          last_active: string | null
         }
         Insert: {
           id?: string
@@ -19,6 +23,10 @@ export interface Database {
           username: string
           bio?: string | null
           image_url?: string | null
+          is_admin?: boolean | null
+          is_active?: boolean | null
+          is_deactivated?: boolean | null
+          last_active?: string | null
         }
         Update: {
           id?: string
@@ -28,6 +36,10 @@ export interface Database {
           username?: string
           bio?: string | null
           image_url?: string | null
+          is_admin?: boolean | null
+          is_active?: boolean | null
+          is_deactivated?: boolean | null
+          last_active?: string | null
         }
       }
       posts: {

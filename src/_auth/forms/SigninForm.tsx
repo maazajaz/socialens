@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Loader from "@/components/shared/Loader";
+import { useToast } from "@/hooks/use-toast";
 
 import { SigninValidation } from "@/lib/validation";
 import { useSignInAccount } from "@/lib/react-query/queriesAndMutations";
@@ -19,6 +20,7 @@ import { useUserContext } from "@/context/SupabaseAuthContext";
 const SigninForm = () => {
   const router = useRouter();
   const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
+  const { toast } = useToast();
 
   // State for inline error display
   const [signInError, setSignInError] = useState<string | null>(null);
@@ -69,6 +71,16 @@ const SigninForm = () => {
         setSignInError("❌ Invalid credentials. Please check your email and password and try again.");
         return;
       }
+
+      if (error?.name === 'AccountDeactivatedError') {
+        setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.");
+        toast({
+          title: "Account Deactivated",
+          description: "Your account has been deactivated. Please contact support at support@socialens.in if you believe this was done in error.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Fallback checks for legacy error handling
       if (error?.message) {
@@ -79,6 +91,8 @@ const SigninForm = () => {
         } else if (error.message.includes('Invalid login credentials') || 
                    error.message.includes('Invalid email or password')) {
           setSignInError("❌ Invalid credentials. Please check your email and password and try again.");
+        } else if (error.message.includes('account has been deactivated')) {
+          setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.");
         } else {
           setSignInError(`❌ Login failed: ${error.message}`);
         }

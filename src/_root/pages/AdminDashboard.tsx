@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Loader from "@/components/shared/Loader";
 import AdminManagement from "@/components/shared/AdminManagement";
+import AdminUserManagement from "@/components/shared/AdminUserManagement";
 import { useGetAdminStats, useCheckAdminAccess } from "@/lib/react-query/queriesAndMutations";
 
 const AdminDashboard = () => {
@@ -268,6 +269,9 @@ const AdminDashboard = () => {
 
         {/* Admin Management Section */}
         <AdminManagement />
+        
+        {/* User & Content Management Section */}
+        <AdminUserManagement />
       </div>
     </div>
   );

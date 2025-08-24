@@ -14,6 +14,7 @@ import {
   getRecentPosts,
   getUserById,
   getUserPosts,
+  getFollowingFeed,
   likePost,
   deleteLike,
   savePost,
@@ -48,6 +49,18 @@ import {
   removeAdminUser,
   sendPasswordResetEmail,
   updateUserPassword,
+  createComment,
+  getPostComments,
+  updateComment,
+  deleteComment,
+  searchUsers,
+  // Admin management functions
+  getAdminAllUsers,
+  getAdminUserDetails,
+  deactivateUser,
+  toggleUserActivation,
+  getAdminAllPosts,
+  adminDeletePost,
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
@@ -78,6 +91,10 @@ export const useCreatePost = () => {
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
       });
+      // Invalidate following feed so new posts appear in followers' feeds
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
       
       // Create notifications for followers when a new post is created
       if (data && variables.userId) {
@@ -91,6 +108,11 @@ export const useCreatePost = () => {
               user.image_url || '',
               variables.caption || 'New post'
             );
+            
+            // Invalidate notifications for all followers of the post creator
+            queryClient.invalidateQueries({
+              queryKey: [QUERY_KEYS.GET_NOTIFICATIONS],
+            });
           }
         } catch (error) {
           console.error('Error creating new post notifications:', error);
@@ -120,6 +142,10 @@ export const useUpdatePost = () => {
         queryClient.invalidateQueries({
           queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
         });
+        // Invalidate following feed so updated posts reflect in followers' feeds
+        queryClient.invalidateQueries({
+          queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+        });
       },
     });
 };
@@ -134,6 +160,24 @@ export const useGetRecentPosts = () => {
       },
       refetchOnWindowFocus: true,
       refetchOnMount: true,
+    });
+};
+
+export const useGetFollowingFeed = (page: number = 1, limit: number = 20) => {
+    return useQuery({
+      queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED, page],
+      queryFn: () => getFollowingFeed(page, limit),
+      staleTime: 1000 * 60 * 1, // 1 minute (shorter than recent posts for more freshness)
+      retry: (failureCount, error: any) => {
+        console.log('Following feed query failed:', error);
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      // Refetch when returning from background
+      refetchInterval: false, // Don't auto-refetch on interval
+      // Ensure fresh data when component mounts
+      gcTime: 1000 * 60 * 5, // 5 minutes cache time
     });
 };
 export const useLikePost = () => {
@@ -173,6 +217,11 @@ export const useLikePost = () => {
               user.name || user.username || 'Unknown User',
               user.image_url || ''
             );
+            
+            // Invalidate notifications for the post owner
+            queryClient.invalidateQueries({
+              queryKey: [QUERY_KEYS.GET_NOTIFICATIONS, post.creator.id],
+            });
           }
         } catch (error) {
           console.error('Error creating like notification:', error);
@@ -291,6 +340,10 @@ export const useDeletePost = () => {
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
       });
+      // Invalidate following feed so deleted posts are removed from followers' feeds
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
     },
   });
 };
@@ -351,6 +404,14 @@ export const useGetUsers = (limit?: number) => {
   return useQuery({
     queryKey: [QUERY_KEYS.GET_USERS],
     queryFn: () => getUsers(limit),
+  });
+};
+
+export const useSearchUsers = (searchTerm: string, limit?: number) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.SEARCH_USERS, searchTerm],
+    queryFn: () => searchUsers(searchTerm, limit),
+    enabled: !!searchTerm.trim(), // Only run query if search term exists
   });
 };
 
@@ -585,6 +646,14 @@ export const useFollowUser = () => {
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.IS_FOLLOWING, userId],
       });
+      // Invalidate following feed to show new posts from followed user
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
+      // Invalidate notifications for the followed user to show new follow notification
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_NOTIFICATIONS, userId],
+      });
     },
   });
 };
@@ -632,6 +701,10 @@ export const useUnfollowUser = () => {
       });
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.IS_FOLLOWING, userId],
+      });
+      // Invalidate following feed to remove posts from unfollowed user
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
       });
     },
   });
@@ -688,5 +761,248 @@ export const useSendPasswordResetEmail = () => {
 export const useUpdatePassword = () => {
   return useMutation({
     mutationFn: (newPassword: string) => updateUserPassword(newPassword),
+  });
+};
+
+// ============================================================
+// NOTIFICATION QUERIES AND MUTATIONS
+// ============================================================
+
+export const useGetNotifications = (userId: string, limit: number = 20) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_NOTIFICATIONS, userId, limit],
+    queryFn: () => notificationService.getUserNotifications(userId, limit),
+    enabled: !!userId,
+    staleTime: 1000 * 30, // 30 seconds (notifications should be fresh)
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  });
+};
+
+export const useMarkNotificationAsRead = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (notificationId: string) => notificationService.markNotificationAsRead(notificationId),
+    onSuccess: () => {
+      // Invalidate notifications queries to update read status
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_NOTIFICATIONS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_UNREAD_COUNT],
+      });
+    },
+  });
+};
+
+export const useMarkAllNotificationsAsRead = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (userId: string) => notificationService.markAllNotificationsAsRead(userId),
+    onSuccess: (_, userId) => {
+      // Invalidate notifications queries to update read status
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_NOTIFICATIONS, userId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_UNREAD_COUNT, userId],
+      });
+    },
+  });
+};
+
+// ============================================================
+// COMMENT QUERIES AND MUTATIONS
+// ============================================================
+
+export const useGetComments = (postId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_COMMENTS, postId],
+    queryFn: () => getPostComments(postId),
+    enabled: !!postId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false, // Comments don't change as frequently
+  });
+};
+
+export const useCreateComment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (comment: { content: string; postId: string; userId: string; parentId?: string }) => 
+      createComment(comment),
+    onSuccess: async (data, variables) => {
+      // Invalidate comments for the post
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_COMMENTS, variables.postId],
+      });
+      
+      // Invalidate post queries to update comment counts
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_POST_BY_ID, variables.postId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
+      
+      // Create comment notification for post owner
+      if (data && variables.userId) {
+        try {
+          const post = await getPostById(variables.postId);
+          const user = await getCurrentUser();
+          
+          if (post && user && post.creator?.id !== variables.userId) {
+            await notificationService.createCommentNotification(
+              variables.postId,
+              post.creator.id,
+              variables.userId,
+              user.name || user.username || 'Unknown User',
+              user.image_url || '',
+              variables.content
+            );
+            
+            // Invalidate notifications for the post owner
+            queryClient.invalidateQueries({
+              queryKey: [QUERY_KEYS.GET_NOTIFICATIONS, post.creator.id],
+            });
+          }
+        } catch (error) {
+          console.error('Error creating comment notification:', error);
+        }
+      }
+    },
+  });
+};
+
+export const useUpdateComment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ commentId, content }: { commentId: string; content: string }) => 
+      updateComment(commentId, content),
+    onSuccess: () => {
+      // Find which post this comment belongs to and invalidate its comments
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_COMMENTS],
+      });
+    },
+  });
+};
+
+export const useDeleteComment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (commentId: string) => deleteComment(commentId),
+    onSuccess: () => {
+      // Invalidate all comment queries since we don't know which post this belonged to
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_COMMENTS],
+      });
+      // Also invalidate post queries to update comment counts
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
+    },
+  });
+};
+
+// ============================================================
+// ADMIN MANAGEMENT HOOKS
+// ============================================================
+
+export const useGetAdminAllUsers = (page: number = 1, limit: number = 10, search: string = '', options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ADMIN_ALL_USERS, page, limit, search],
+    queryFn: () => getAdminAllUsers(page, limit, search),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: options?.enabled !== false,
+  });
+};
+
+export const useGetAdminUserDetails = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ADMIN_USER_DETAILS, userId],
+    queryFn: () => getAdminUserDetails(userId),
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+export const useToggleUserActivation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (userId: string) => toggleUserActivation(userId),
+    onSuccess: () => {
+      // Invalidate admin user queries to refresh the list
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_ALL_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_STATS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_USER_DETAILS],
+      });
+    },
+  });
+};
+
+export const useDeactivateUser = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (userId: string) => deactivateUser(userId),
+    onSuccess: () => {
+      // Invalidate admin user queries to refresh the list
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_ALL_USERS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_STATS],
+      });
+    },
+  });
+};
+
+export const useGetAdminAllPosts = (page: number = 1, limit: number = 10, search: string = '', options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ADMIN_ALL_POSTS, page, limit, search],
+    queryFn: () => getAdminAllPosts(page, limit, search),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: options?.enabled !== false,
+  });
+};
+
+export const useAdminDeletePost = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (postId: string) => adminDeletePost(postId),
+    onSuccess: () => {
+      // Invalidate admin post queries
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_ALL_POSTS],
+      });
+      // Also invalidate regular post queries
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_RECENT_POSTS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_FOLLOWING_FEED],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ADMIN_STATS],
+      });
+    },
   });
 };

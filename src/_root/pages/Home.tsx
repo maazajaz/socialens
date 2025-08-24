@@ -2,7 +2,7 @@
 
 // import { useToast } from "@/components/ui/use-toast";
 
-import { useGetRecentPosts, useGetUsers } from "@/lib/react-query/queriesAndMutations";
+import { useGetFollowingFeed, useGetUsers } from "@/lib/react-query/queriesAndMutations";
 import { useUserContext } from "@/context/SupabaseAuthContext";
 import Loader from "@/components/shared/Loader";
 import PostCard from "@/components/shared/PostCard";
@@ -16,7 +16,7 @@ const Home = () => {
     data: posts,
     isPending: isPostLoading,
     isError: isErrorPosts,
-  } = useGetRecentPosts();
+  } = useGetFollowingFeed();
   const {
     data: creators,
     isPending: isUserLoading,
@@ -43,7 +43,7 @@ const Home = () => {
     <div className="flex flex-row flex-1 w-full">
       <div className="home-container">
         <div className="home-posts">
-          <h2 className="h3-bold md:h2-bold text-left w-full">Home Feed</h2>
+          <h2 className="h3-bold md:h2-bold text-left w-full">Following Feed</h2>
           {isPostLoading && !posts ? (
             <Loader />
           ) : (
@@ -55,7 +55,40 @@ const Home = () => {
                   </li>
                 ))
               ) : (
-                <p className="text-light-4">No posts yet</p>
+                <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-dark-3 flex items-center justify-center mb-4">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-light-4">
+                      <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 14C16.4183 14 20 17.5817 20 22H4C4 17.5817 7.58172 14 12 14Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <h3 className="text-light-2 text-lg font-semibold mb-2">Your feed is empty</h3>
+                  <p className="text-light-4 text-sm mb-4 max-w-sm">
+                    Follow other people to see their posts in your feed, or create your first post!
+                  </p>
+                  <div className="flex gap-3">
+                    <a 
+                      href="/explore" 
+                      className="text-primary-500 hover:text-primary-400 text-sm font-medium"
+                    >
+                      Explore Posts
+                    </a>
+                    <span className="text-light-4">•</span>
+                    <a 
+                      href="/all-users" 
+                      className="text-primary-500 hover:text-primary-400 text-sm font-medium"
+                    >
+                      Find People
+                    </a>
+                    <span className="text-light-4">•</span>
+                    <a 
+                      href="/create-post" 
+                      className="text-primary-500 hover:text-primary-400 text-sm font-medium"
+                    >
+                      Create Post
+                    </a>
+                  </div>
+                </div>
               )}
             </ul>
           )}
