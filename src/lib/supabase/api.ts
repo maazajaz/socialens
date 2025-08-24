@@ -36,14 +36,17 @@ const supabase = createClient()
 
 export async function signUpUser(user: { name: string; email: string; password: string; username: string }) {
   try {
+    // Normalize email to lowercase
+    const normalizedEmail = user.email.toLowerCase().trim();
+    
     console.log('Attempting to sign up user:', { 
-      email: user.email, 
+      email: normalizedEmail, 
       name: user.name, 
       username: user.username 
     });
 
     const { data, error } = await supabase.auth.signUp({
-      email: user.email,
+      email: normalizedEmail,
       password: user.password,
       options: {
         data: {
@@ -86,7 +89,7 @@ export async function signUpUser(user: { name: string; email: string; password: 
         .insert([
           {
             id: data.user.id,
-            email: user.email,
+            email: normalizedEmail,
             name: user.name,
             username: user.username,
             image_url: null,
@@ -130,10 +133,13 @@ export async function signUpUser(user: { name: string; email: string; password: 
 
 export async function signInUser(user: { email: string; password: string }) {
   try {
-    console.log('Attempting to sign in user:', { email: user.email });
+    // Normalize email to lowercase
+    const normalizedEmail = user.email.toLowerCase().trim();
+    
+    console.log('Attempting to sign in user:', { email: normalizedEmail });
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: user.email,
+      email: normalizedEmail,
       password: user.password,
     })
 
@@ -1826,64 +1832,42 @@ export async function getCommentLikeStatus(commentId: string, userId: string): P
 
 // ============ PASSWORD RESET FUNCTIONS ============
 
-export async function sendPasswordResetOTP(email: string) {
+export async function sendPasswordResetEmail(email: string) {
   try {
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    console.log('🔄 Starting password reset for email:', normalizedEmail);
+    
     // First check if user exists
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, email')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .single()
 
+    console.log('👤 User check result:', { userData, userError });
+
     if (userError || !userData) {
+      console.log('❌ User not found');
       throw new Error('No account found with this email address')
     }
 
-    // Send OTP for password recovery
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email,
-      options: {
-        shouldCreateUser: false, // Don't create new user
-        data: {
-          type: 'recovery' // Mark this as password recovery
-        }
-      }
-    })
+    console.log('📧 Sending reset email to:', normalizedEmail);
+    // Send password reset email with link (this will use your email template)
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
 
-    if (error) throw error
+    if (error) {
+      console.log('❌ Reset email error:', error);
+      throw error;
+    }
     
-    return { success: true, message: 'Password reset code sent to your email' }
+    console.log('✅ Reset email sent successfully');
+    return { success: true, message: 'Password reset email sent! Please check your inbox.' }
   } catch (error: any) {
-    console.error('Error sending password reset OTP:', error)
-    throw error
-  }
-}
-
-export async function verifyPasswordResetOTP(email: string, token: string, newPassword: string) {
-  try {
-    // Verify the OTP token
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    })
-
-    if (verifyError || !data.user) {
-      throw new Error('Invalid or expired reset code')
-    }
-
-    // Update the password after successful OTP verification
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword
-    })
-
-    if (updateError) {
-      throw new Error('Failed to update password')
-    }
-
-    return { success: true, message: 'Password updated successfully' }
-  } catch (error: any) {
-    console.error('Error verifying password reset OTP:', error)
+    console.error('Error sending password reset email:', error)
     throw error
   }
 }

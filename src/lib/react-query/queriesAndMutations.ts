@@ -46,8 +46,7 @@ import {
   getAdminUsers,
   addAdminUser,
   removeAdminUser,
-  sendPasswordResetOTP,
-  verifyPasswordResetOTP,
+  sendPasswordResetEmail,
   updateUserPassword,
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
@@ -680,19 +679,9 @@ export const useGetFollowing = (userId: string) => {
 
 // ============ PASSWORD RESET MUTATIONS ============
 
-export const useSendPasswordResetOTP = () => {
+export const useSendPasswordResetEmail = () => {
   return useMutation({
-    mutationFn: (email: string) => sendPasswordResetOTP(email),
-  });
-};
-
-export const useVerifyPasswordResetOTP = () => {
-  return useMutation({
-    mutationFn: ({ email, token, newPassword }: { 
-      email: string; 
-      token: string; 
-      newPassword: string; 
-    }) => verifyPasswordResetOTP(email, token, newPassword),
+    mutationFn: (email: string) => sendPasswordResetEmail(email),
   });
 };
 

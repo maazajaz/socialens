@@ -47,108 +47,23 @@ function ResetPasswordForm() {
   useEffect(() => {
     const checkResetToken = async () => {
       try {
-        console.log('🔍 Checking for reset tokens...');
-        console.log('Current URL:', window.location.href);
-        console.log('URL Hash:', window.location.hash);
-        console.log('URL Search:', window.location.search);
-        
-        // First check for PKCE code in URL parameters (newer Supabase flow)
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        
-        if (code) {
-          console.log('✅ Found PKCE code in URL parameters:', code);
-          
-          try {
-            // Exchange the code for a session using Supabase's PKCE flow
-            console.log('🔄 Attempting to exchange code for session...');
-            
-            // Try the exchange but don't wait indefinitely
-            const exchangePromise = supabase.auth.exchangeCodeForSession(code);
-            
-            // Also listen for auth state changes as backup
-            const authStatePromise = new Promise((resolve) => {
-              const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-                console.log('🔊 Auth state change during reset:', event, !!session);
-                if (event === 'SIGNED_IN' && session) {
-                  console.log('✅ User signed in via auth state change');
-                  subscription.unsubscribe();
-                  resolve({ data: { session, user: session.user }, error: null });
-                }
-              });
-              
-              // Cleanup subscription after 5 seconds
-              setTimeout(() => {
-                subscription.unsubscribe();
-              }, 5000);
-            });
-            
-            // Race between the exchange and auth state change
-            const result = await Promise.race([
-              exchangePromise,
-              authStatePromise,
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Timeout after 8 seconds')), 8000)
-              )
-            ]);
-            
-            const { data, error } = result as any;
-            
-            console.log('📊 Exchange result:', { data: !!data, error });
-            if (error) console.log('❌ Exchange error details:', error);
-            if (data) console.log('✅ Exchange success data:', { session: !!data.session, user: !!data.user });
-            
-            if (error) {
-              console.error('❌ Error exchanging code for session:', error);
-              toast({
-                title: "Invalid reset link",
-                description: "This reset link is invalid or has expired.",
-                variant: "destructive",
-              });
-              setIsValidToken(false);
-            } else {
-              console.log('✅ Successfully exchanged code for session:', data);
-              setIsValidToken(true);
-              toast({
-                title: "Email verified! 🎉",
-                description: "Please enter your new password below.",
-              });
-              
-              // Clean up URL parameters
-              window.history.replaceState({}, document.title, window.location.pathname);
-            }
-          } catch (exchangeError) {
-            console.error('🚨 Exception during code exchange:', exchangeError);
-            toast({
-              title: "Error processing reset link",
-              description: "Something went wrong. Please try requesting a new reset link.",
-              variant: "destructive",
-            });
-            setIsValidToken(false);
-          }
-          setIsLoading(false);
-          return; // Exit early since we found a valid code
-        }
-        
-        // Fallback: Parse URL hash for tokens (older Supabase flow)
+        // Parse URL hash for tokens (Supabase redirects with tokens in hash)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
-        console.log('Found tokens:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
-        
         if (accessToken && refreshToken && type === 'recovery') {
-          console.log('✅ Found valid reset tokens in URL hash');
+          console.log('Found reset tokens in URL hash');
           
           // Set the session with the tokens from the URL
-          const { error } = await supabase.auth.setSession({
+          const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           });
           
           if (error) {
-            console.error('❌ Error setting session:', error);
+            console.error('Error setting session:', error);
             toast({
               title: "Invalid reset link",
               description: "This reset link is invalid or has expired.",
@@ -156,7 +71,7 @@ function ResetPasswordForm() {
             });
             setIsValidToken(false);
           } else {
-            console.log('✅ Successfully set session for password reset');
+            console.log('Successfully set session for password reset');
             setIsValidToken(true);
             toast({
               title: "Email verified! 🎉",
@@ -167,9 +82,14 @@ function ResetPasswordForm() {
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         } else {
-          // No valid tokens or code found - user accessed page directly
-          console.log('ℹ️ No reset tokens or code found in URL - user accessed page directly');
+          // No valid tokens found
+          console.log('No valid reset tokens found in URL');
           setIsValidToken(false);
+          toast({
+            title: "Invalid reset link",
+            description: "Please use the reset link from your email.",
+            variant: "destructive",
+          });
         }
       } catch (error) {
         console.error('Error checking reset token:', error);

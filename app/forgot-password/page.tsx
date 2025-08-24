@@ -1,22 +1,25 @@
 "use client";
 
 import * as z from "zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../src/components/ui/form";
 import { Input } from "../../src/components/ui/input";
 import { Button } from "../../src/components/ui/button";
+import { useToast } from "../../src/hooks/use-toast";
+import { useSendPasswordResetEmail } from "../../src/lib/react-query/queriesAndMutations";
 
 const ForgotPasswordValidation = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
 const ForgotPasswordPage = () => {
-  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof ForgotPasswordValidation>>({
     resolver: zodResolver(ForgotPasswordValidation),
@@ -25,9 +28,30 @@ const ForgotPasswordPage = () => {
     },
   });
 
-  const handleForgotPassword = (values: z.infer<typeof ForgotPasswordValidation>) => {
-    // Redirect to reset-password page with email prefilled
-    router.push(`/reset-password?email=${encodeURIComponent(values.email)}`);
+  // Use the mutation hook
+  const sendEmailMutation = useSendPasswordResetEmail();
+
+  const handleForgotPassword = async (values: z.infer<typeof ForgotPasswordValidation>) => {
+    console.log('🚀 Starting forgot password for:', values.email);
+    setIsLoading(true);
+    try {
+      console.log('📧 Calling sendEmailMutation...');
+      await sendEmailMutation.mutateAsync(values.email);
+      console.log('✅ Password reset email sent successfully');
+      toast({
+        title: "Reset email sent! 📧",
+        description: "Please check your email and click the reset link.",
+      });
+    } catch (error: any) {
+      console.log('❌ Error sending reset email:', error);
+      toast({
+        title: "Error sending reset email",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -50,7 +74,11 @@ const ForgotPasswordPage = () => {
             </p>
 
             <form
-              onSubmit={form.handleSubmit(handleForgotPassword)}
+              onSubmit={(e) => {
+                console.log('🎯 Form submit triggered');
+                e.preventDefault();
+                form.handleSubmit(handleForgotPassword)(e);
+              }}
               className="flex flex-col gap-5 w-full mt-4"
             >
               <FormField
@@ -67,8 +95,12 @@ const ForgotPasswordPage = () => {
                 )}
               />
 
-              <Button type="submit" className="shad-button_primary">
-                Continue
+              <Button 
+                type="submit" 
+                className="shad-button_primary"
+                disabled={isLoading || sendEmailMutation.isPending}
+              >
+                {isLoading || sendEmailMutation.isPending ? "Sending..." : "Send Reset Email"}
               </Button>
             </form>
 
