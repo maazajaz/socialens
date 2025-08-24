@@ -66,7 +66,63 @@ const ResetPasswordContent = () => {
           console.log('Storage cleanup error:', storageError);
         }
 
-        // Check for URL hash fragments first (password recovery uses this)
+        // Check for code parameter (PKCE flow for password recovery)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (code) {
+          console.log('Found code parameter, attempting PKCE exchange for password recovery...');
+          
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (!error && data.session) {
+              console.log('PKCE code exchange successful for password recovery!');
+              
+              // Verify this is a recovery session
+              try {
+                const payload = JSON.parse(atob(data.session.access_token.split('.')[1]));
+                const isRecoverySession = payload.amr && payload.amr.some((amr: any) => amr.method === 'recovery');
+                
+                console.log('Session details:', {
+                  isRecoverySession,
+                  amr: payload.amr
+                });
+                
+                if (isRecoverySession) {
+                  console.log('Confirmed: This is a valid password recovery session');
+                  setIsSessionValid(true);
+                  setIsCheckingSession(false);
+                  // Clean up URL
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                  return;
+                } else {
+                  console.log('Session is not a recovery session, treating as regular auth');
+                  setIsSessionValid(true);
+                  setIsCheckingSession(false);
+                  // Clean up URL
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                  return;
+                }
+              } catch (jwtError) {
+                console.log('Could not parse JWT, but session exists - proceeding');
+                setIsSessionValid(true);
+                setIsCheckingSession(false);
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+              }
+            } else {
+              console.error('PKCE code exchange failed:', error);
+              throw new Error('Failed to authenticate with reset link');
+            }
+          } catch (codeError) {
+            console.error('Error processing code parameter:', codeError);
+            throw new Error('Failed to process reset link - it may be expired or invalid');
+          }
+        }
+
+        // Check for URL hash fragments (alternative recovery flow)
         const hash = window.location.hash;
         
         if (hash && hash.length > 1) {
@@ -160,9 +216,9 @@ const ResetPasswordContent = () => {
           }
         }
         
-        // If no hash and no session, show instructions
+        // If no code, no hash and no session, show instructions
         const currentUrl = window.location.href;
-        const hasAuthParams = currentUrl.includes('code=') || currentUrl.includes('access_token') || currentUrl.includes('#');
+        const hasAuthParams = code || currentUrl.includes('access_token') || currentUrl.includes('#');
         
         if (!hasAuthParams) {
           console.log('Direct access to reset page without auth parameters');
