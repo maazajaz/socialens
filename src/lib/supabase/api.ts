@@ -1888,44 +1888,6 @@ export async function verifyPasswordResetOTP(email: string, token: string, newPa
   }
 }
 
-    if (updateError) {
-      throw new Error('Failed to update password')
-    }
-
-    return { success: true, message: 'Password updated successfully' }
-  } catch (error: any) {
-    console.error('Error verifying password reset OTP:', error)
-    throw error
-  }
-}
-      }
-    })
-
-    if (error) throw error
-    
-    return { success: true, message: 'Password reset code sent to your email' }
-  } catch (error: any) {
-    console.error('Error sending password reset OTP:', error)
-    throw error
-  }
-}
-
-    if (error) throw error
-
-    // Update password
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword
-    })
-
-    if (updateError) throw updateError
-
-    return { success: true, message: 'Password updated successfully' }
-  } catch (error: any) {
-    console.error('Error verifying OTP and updating password:', error)
-    throw error
-  }
-}
-
 export async function updateUserPassword(newPassword: string) {
   try {
     const { error } = await supabase.auth.updateUser({
