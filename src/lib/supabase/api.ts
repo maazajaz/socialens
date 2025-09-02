@@ -136,7 +136,7 @@ export async function signUpUser(user: { name: string; email: string; password: 
 
     console.log('Auth signup successful:', data);
 
-    // Create user profile in users table
+    // Create user profile in users table (or verify it exists if created by trigger)
     if (data.user) {
       console.log('Creating user profile in users table...');
       
@@ -152,6 +152,24 @@ export async function signUpUser(user: { name: string; email: string; password: 
         console.log('Session set for profile creation');
       }
       
+      // First, check if profile already exists (maybe created by trigger)
+      const { data: existingProfile, error: checkError } = await freshClient
+        .from('users')
+        .select('id')
+        .eq('id', data.user.id)
+        .single();
+        
+      if (existingProfile) {
+        console.log('User profile already exists (likely created by trigger)');
+        return data;
+      }
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing profile:', checkError);
+        throw checkError;
+      }
+      
+      // Profile doesn't exist, create it
       const { error: profileError } = await freshClient
         .from('users')
         .insert([
@@ -177,8 +195,29 @@ export async function signUpUser(user: { name: string; email: string; password: 
           code: profileError.code
         });
 
-        // Try the alternative approach: service role insert
-        if (profileError.code === '42501') {
+        // Handle duplicate key constraint specifically
+        if (profileError.code === '23505') {
+          console.log('User profile already exists, attempting to update instead...');
+          
+          // Try to update the existing profile instead
+          const { error: updateError } = await freshClient
+            .from('users')
+            .update({
+              email: normalizedEmail,
+              name: user.name,
+              username: normalizedUsername,
+              is_active: false,
+              is_deactivated: false,
+            })
+            .eq('id', data.user.id);
+            
+          if (updateError) {
+            console.error('Error updating existing user profile:', updateError);
+            throw new Error('Profile creation failed. The account may already exist. Please try signing in instead.');
+          }
+          
+          console.log('User profile updated successfully');
+        } else if (profileError.code === '42501') {
           console.log('Attempting service role insert as fallback...');
           try {
             // This would require service role key in a separate API route
@@ -187,12 +226,12 @@ export async function signUpUser(user: { name: string; email: string; password: 
           } catch (fallbackError) {
             throw new Error('Database permission error. Please check your RLS policies for the users table.');
           }
+        } else {
+          throw profileError;
         }
-        
-        throw profileError;
+      } else {
+        console.log('User profile created successfully');
       }
-      
-      console.log('User profile created successfully');
     }
 
     return data
