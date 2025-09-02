@@ -113,6 +113,7 @@ export async function signUpUser(user: { name: string; email: string; password: 
       throw availabilityError;
     }
 
+    // Step 1: Create auth user
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password: user.password,
@@ -135,102 +136,19 @@ export async function signUpUser(user: { name: string; email: string; password: 
     }
 
     console.log('Auth signup successful:', data);
-
-    // Create user profile in users table (or verify it exists if created by trigger)
+    
+    // Ensure user profile is created
     if (data.user) {
-      console.log('Creating user profile in users table...');
+      console.log('Ensuring user profile exists...');
       
-      // Wait for auth context to be fully available
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait a moment for auth to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Create a new supabase client instance to ensure fresh auth context
-      const freshClient = createClient();
-      
-      // Set the session explicitly
-      if (data.session) {
-        await freshClient.auth.setSession(data.session);
-        console.log('Session set for profile creation');
-      }
-      
-      // First, check if profile already exists (maybe created by trigger)
-      const { data: existingProfile, error: checkError } = await freshClient
-        .from('users')
-        .select('id')
-        .eq('id', data.user.id)
-        .single();
-        
-      if (existingProfile) {
-        console.log('User profile already exists (likely created by trigger)');
-        return data;
-      }
-      
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing profile:', checkError);
-        throw checkError;
-      }
-      
-      // Profile doesn't exist, create it
-      const { error: profileError } = await freshClient
-        .from('users')
-        .insert([
-          {
-            id: data.user.id,
-            email: normalizedEmail,
-            name: user.name,
-            username: normalizedUsername,
-            image_url: null,
-            bio: null,
-            is_active: false, // Will be set to true when they actually log in
-            is_deactivated: false,
-            last_active: null // Will be set when they first log in
-          }
-        ])
-      
-      if (profileError) {
-        console.error('Error creating user profile:', profileError);
-        console.error('Profile error details:', {
-          message: profileError.message,
-          details: profileError.details,
-          hint: profileError.hint,
-          code: profileError.code
-        });
-
-        // Handle duplicate key constraint specifically
-        if (profileError.code === '23505') {
-          console.log('User profile already exists, attempting to update instead...');
-          
-          // Try to update the existing profile instead
-          const { error: updateError } = await freshClient
-            .from('users')
-            .update({
-              email: normalizedEmail,
-              name: user.name,
-              username: normalizedUsername,
-              is_active: false,
-              is_deactivated: false,
-            })
-            .eq('id', data.user.id);
-            
-          if (updateError) {
-            console.error('Error updating existing user profile:', updateError);
-            throw new Error('Profile creation failed. The account may already exist. Please try signing in instead.');
-          }
-          
-          console.log('User profile updated successfully');
-        } else if (profileError.code === '42501') {
-          console.log('Attempting service role insert as fallback...');
-          try {
-            // This would require service role key in a separate API route
-            // For now, let's provide clear error message
-            throw new Error('RLS policy error: User authentication not recognized. Please try the database trigger approach or check your Supabase session configuration.');
-          } catch (fallbackError) {
-            throw new Error('Database permission error. Please check your RLS policies for the users table.');
-          }
-        } else {
-          throw profileError;
-        }
+      const profile = await ensureUserProfile(data.user);
+      if (!profile) {
+        console.warn('Profile creation failed, but auth signup was successful');
       } else {
-        console.log('User profile created successfully');
+        console.log('Profile ensured successfully:', profile.username);
       }
     }
 
@@ -381,6 +299,63 @@ export async function setUserInactive(userId?: string) {
   }
 }
 
+// Helper function to ensure user profile exists
+async function ensureUserProfile(authUser: any): Promise<any> {
+  try {
+    // First try to get existing profile
+    const { data: existingProfile, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+    
+    if (existingProfile && !fetchError) {
+      return existingProfile;
+    }
+    
+    // If profile doesn't exist, create it
+    if (fetchError && (fetchError.code === 'PGRST116' || fetchError.message?.includes('0 rows'))) {
+      console.log('Creating missing user profile for:', authUser.id);
+      
+      const userName = authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
+      const username = authUser.user_metadata?.username || `user_${authUser.id.substring(0, 8)}`;
+      
+      const { data: newProfile, error: createError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: authUser.id,
+            email: authUser.email,
+            name: userName,
+            username: username,
+            image_url: null,
+            bio: null,
+            is_active: false,
+            is_deactivated: false,
+            last_active: null,
+            privacy_setting: 'public'
+          }
+        ])
+        .select()
+        .single();
+        
+      if (createError) {
+        console.error('Error creating user profile:', createError);
+        return null;
+      }
+      
+      console.log('User profile created successfully:', newProfile);
+      return newProfile;
+    }
+    
+    console.error('Unexpected error fetching profile:', fetchError);
+    return null;
+  } catch (error) {
+    console.error('Error in ensureUserProfile:', error);
+    return null;
+  }
+}
+
 export async function getCurrentUser() {
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -395,19 +370,9 @@ export async function getCurrentUser() {
     
     if (!user) return null
 
-    // Get user profile from users table
-    const { data: profile, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (error) {
-      console.error('Profile fetch error:', error)
-      return null
-    }
-    
-    return profile
+    // Ensure user profile exists and return it
+    const profile = await ensureUserProfile(user);
+    return profile;
   } catch (error) {
     // Only log errors if they're not authentication-related
     const errorMessage = error instanceof Error ? error.message : String(error)
