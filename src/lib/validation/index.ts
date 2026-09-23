@@ -61,3 +61,8 @@ export const PostValidation = z.object({
 export const CommentValidation = z.object({
   content: z.string().min(1, { message: "Comment cannot be empty." }).max(2200, { message: "Maximum 2,200 characters" }),
 });
+
+export const StoryValidation = z.object({
+  file: z.custom<File[]>(),
+  caption: z.string().max(500).optional(),
+});

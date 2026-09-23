@@ -61,6 +61,19 @@ import {
   toggleUserActivation,
   getAdminAllPosts,
   adminDeletePost,
+  // Stories functions
+  createStory,
+  getActiveStories,
+  getUserStories,
+  getArchivedStories,
+  deleteStory,
+  viewStory,
+  getStoryViewers,
+  createHighlight,
+  updateHighlight,
+  deleteHighlight,
+  getUserHighlights,
+  getHighlightStories,
 } from "../supabase/api";
 import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
@@ -1002,6 +1015,151 @@ export const useAdminDeletePost = () => {
       });
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_ADMIN_STATS],
+      });
+    },
+  });
+};
+
+// ============================================================
+// STORIES AND HIGHLIGHTS HOOKS
+// ============================================================
+
+export const useGetActiveStories = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ACTIVE_STORIES],
+    queryFn: getActiveStories,
+    staleTime: 1000 * 60, // 1 minute
+    refetchOnWindowFocus: true,
+  });
+};
+
+export const useGetUserStories = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_STORIES, userId],
+    queryFn: () => getUserStories(userId),
+    enabled: !!userId,
+  });
+};
+
+export const useGetArchivedStories = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_ARCHIVED_STORIES],
+    queryFn: getArchivedStories,
+  });
+};
+
+export const useGetStoryViewers = (storyId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_STORY_VIEWERS, storyId],
+    queryFn: () => getStoryViewers(storyId),
+    enabled: !!storyId,
+  });
+};
+
+export const useGetUserHighlights = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_HIGHLIGHTS, userId],
+    queryFn: () => getUserHighlights(userId),
+    enabled: !!userId,
+  });
+};
+
+export const useGetHighlightStories = (highlightId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_HIGHLIGHT_STORIES, highlightId],
+    queryFn: () => getHighlightStories(highlightId),
+    enabled: !!highlightId,
+  });
+};
+
+export const useCreateStory = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ file, caption }: { file: File; caption?: string }) => 
+      createStory(file, caption),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ACTIVE_STORIES],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_STORIES],
+      });
+    },
+  });
+};
+
+export const useDeleteStory = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (storyId: string) => deleteStory(storyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ACTIVE_STORIES],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_STORIES],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ARCHIVED_STORIES],
+      });
+    },
+  });
+};
+
+export const useViewStory = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (storyId: string) => viewStory(storyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_ACTIVE_STORIES],
+      });
+    },
+  });
+};
+
+export const useCreateHighlight = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ title, storyIds, coverUrl }: { title: string; storyIds: string[]; coverUrl?: string }) => 
+      createHighlight(title, storyIds, coverUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_HIGHLIGHTS],
+      });
+    },
+  });
+};
+
+export const useUpdateHighlight = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ highlightId, updates }: { highlightId: string; updates: { title?: string; coverUrl?: string; storyIds?: string[] } }) => 
+      updateHighlight(highlightId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_HIGHLIGHTS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_HIGHLIGHT_STORIES],
+      });
+    },
+  });
+};
+
+export const useDeleteHighlight = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (highlightId: string) => deleteHighlight(highlightId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_HIGHLIGHTS],
       });
     },
   });

@@ -91,3 +91,41 @@ export type DocumentList = {
   }[];
   total?: number; // Optional: total number of documents
 };
+
+export type IStory = {
+  id: string;
+  creator_id: string;
+  media_url: string;
+  media_type: 'image' | 'video';
+  caption: string | null;
+  created_at: string;
+  expires_at: string;
+  is_archived: boolean;
+  creator: IUser;
+  views?: Array<{ viewer_id: string; viewed_at: string }>;
+  _count?: {
+    views: number;
+  };
+};
+
+export type IStoryGroup = {
+  user: IUser;
+  stories: IStory[];
+  hasUnviewed: boolean;
+  latestStoryAt: string;
+};
+
+export type INewStory = {
+  file: File[];
+  caption?: string;
+};
+
+export type IStoryHighlight = {
+  id: string;
+  user_id: string;
+  title: string;
+  cover_url: string | null;
+  created_at: string;
+  display_order: number;
+  stories?: IStory[];
+};

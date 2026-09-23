@@ -41,4 +41,12 @@ export enum QUERY_KEYS {
   
   // COMMENT KEYS
   GET_COMMENTS = "getComments",
+  
+  // STORY KEYS
+  GET_ACTIVE_STORIES = "getActiveStories",
+  GET_USER_STORIES = "getUserStories",
+  GET_ARCHIVED_STORIES = "getArchivedStories",
+  GET_STORY_VIEWERS = "getStoryViewers",
+  GET_USER_HIGHLIGHTS = "getUserHighlights",
+  GET_HIGHLIGHT_STORIES = "getHighlightStories",
 }  

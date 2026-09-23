@@ -335,3 +335,45 @@
     padding-bottom: 20px !important;
   }
 }
+
+/* Stories Feature Styles */
+.story-ring-unseen {
+  @apply rounded-full p-[3px];
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.story-ring-seen {
+  @apply rounded-full p-[3px] bg-dark-4;
+}
+
+.story-ring-inner {
+  @apply rounded-full p-[2px] bg-dark-1;
+}
+
+.story-progress-bar {
+  @apply h-[2px] rounded-full bg-white/30 flex-1;
+}
+
+.story-progress-fill {
+  @apply h-full rounded-full bg-white transition-all duration-100 ease-linear;
+}
+
+.stories-tray {
+  @apply flex gap-4 overflow-x-auto pb-4 w-full;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stories-tray::-webkit-scrollbar {
+  display: none;
+}
+
+.highlight-tray {
+  @apply flex gap-4 overflow-x-auto py-4 w-full;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.highlight-tray::-webkit-scrollbar {
+  display: none;
+}

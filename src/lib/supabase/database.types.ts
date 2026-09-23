@@ -189,6 +189,104 @@ export interface Database {
           comment_id?: string
         }
       }
+      stories: {
+        Row: {
+          id: string
+          creator_id: string
+          media_url: string
+          media_type: 'image' | 'video'
+          caption: string | null
+          created_at: string
+          expires_at: string
+          is_archived: boolean
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          media_url: string
+          media_type?: 'image' | 'video'
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          is_archived?: boolean
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          media_url?: string
+          media_type?: 'image' | 'video'
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          is_archived?: boolean
+        }
+      }
+      story_views: {
+        Row: {
+          id: string
+          story_id: string
+          viewer_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          story_id: string
+          viewer_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          story_id?: string
+          viewer_id?: string
+          viewed_at?: string
+        }
+      }
+      story_highlights: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          cover_url: string | null
+          created_at: string
+          display_order: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          cover_url?: string | null
+          created_at?: string
+          display_order?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          cover_url?: string | null
+          created_at?: string
+          display_order?: number
+        }
+      }
+      story_highlight_items: {
+        Row: {
+          id: string
+          highlight_id: string
+          story_id: string
+          display_order: number
+        }
+        Insert: {
+          id?: string
+          highlight_id: string
+          story_id: string
+          display_order?: number
+        }
+        Update: {
+          id?: string
+          highlight_id?: string
+          story_id?: string
+          display_order?: number
+        }
+      }
     }
     Views: {
       [_ in never]: never

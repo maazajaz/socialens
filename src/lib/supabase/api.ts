@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { createClient } from './client'
 import { Database } from './database.types'
@@ -27,6 +27,18 @@ export type Comment = Database['public']['Tables']['comments']['Row'] & {
   }
 }
 export type CommentLike = Database['public']['Tables']['comment_likes']['Row']
+export type Story = Database['public']['Tables']['stories']['Row'] & {
+  creator: User
+  views?: Array<{ viewer_id: string; viewed_at: string }>
+  _count?: {
+    views: number
+  }
+}
+export type StoryView = Database['public']['Tables']['story_views']['Row']
+export type StoryHighlight = Database['public']['Tables']['story_highlights']['Row'] & {
+  stories?: Story[]
+}
+export type StoryHighlightItem = Database['public']['Tables']['story_highlight_items']['Row']
 
 const supabase = createClient()
 
@@ -215,7 +227,7 @@ export async function signInUser(user: { email: string; password: string }) {
           // Sign them out immediately
           await supabase.auth.signOut();
           
-          const deactivatedError = new Error('Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.');
+          const deactivatedError = new Error('Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.de for assistance.');
           deactivatedError.name = 'AccountDeactivatedError';
           throw deactivatedError;
         }
@@ -2611,4 +2623,417 @@ export async function adminDeletePost(postId: string) {
   }
 }
 
+// ============================================================
+// STORIES
+// ============================================================
+
+export async function createStory(file: File, caption?: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const media_type = file.type.startsWith('video/') ? 'video' : 'image'
+    const ext = file.name.split('.').pop()
+    const fileName = `stories/${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('posts')
+      .upload(fileName, file)
+
+    if (uploadError) throw uploadError
+
+    const { data: publicUrlData } = supabase.storage
+      .from('posts')
+      .getPublicUrl(fileName)
+
+    const media_url = publicUrlData.publicUrl
+
+    const { data: newStory, error } = await supabase
+      .from('stories')
+      .insert({
+        creator_id: user.id,
+        media_url,
+        media_type,
+        caption
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return newStory
+  } catch (error) {
+    console.error('Error creating story:', error)
+    throw error
+  }
+}
+
+export async function getActiveStories() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Get current user's followed user IDs
+    const { data: follows } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+
+    const followedIds = follows?.map(f => f.following_id) || []
+
+    const { data: stories, error } = await supabase
+      .from('stories')
+      .select(`
+        *,
+        creator:users(*),
+        views:story_views(viewer_id, viewed_at)
+      `)
+      .gt('expires_at', new Date().toISOString())
+      .eq('is_archived', false)
+
+    if (error) throw error
+
+    // Filter by privacy
+    const filteredStories = stories.filter((story: any) => {
+      if (story.creator_id === user.id) return true
+      if (story.creator.privacy_setting === 'public') return true
+      if (story.creator.privacy_setting === 'followers_only' && followedIds.includes(story.creator_id)) return true
+      return false
+    })
+
+    // Group stories by creator_id
+    const groupsMap = new Map()
+    filteredStories.forEach((story: any) => {
+      const creatorId = story.creator_id
+      if (!groupsMap.has(creatorId)) {
+        groupsMap.set(creatorId, {
+          user: story.creator,
+          stories: [],
+          hasUnviewed: false,
+          latestStoryAt: story.created_at
+        })
+      }
+      
+      const group = groupsMap.get(creatorId)
+      group.stories.push(story)
+      
+      // Check if unviewed
+      const hasViewed = story.views?.some((v: any) => v.viewer_id === user.id)
+      if (!hasViewed) {
+        group.hasUnviewed = true
+      }
+      
+      if (new Date(story.created_at) > new Date(group.latestStoryAt)) {
+        group.latestStoryAt = story.created_at
+      }
+    })
+
+    const groups = Array.from(groupsMap.values())
+    
+    // Sort: own stories first, then by latestStoryAt descending
+    groups.sort((a, b) => {
+      if (a.user.id === user.id) return -1
+      if (b.user.id === user.id) return 1
+      return new Date(b.latestStoryAt).getTime() - new Date(a.latestStoryAt).getTime()
+    })
+
+    return groups
+  } catch (error) {
+    console.error('Error getting active stories:', error)
+    return []
+  }
+}
+
+export async function getUserStories(userId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data: stories, error } = await supabase
+      .from('stories')
+      .select(`
+        *,
+        creator:users(*),
+        views:story_views(viewer_id, viewed_at)
+      `)
+      .eq('creator_id', userId)
+      .gt('expires_at', new Date().toISOString())
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return stories
+  } catch (error) {
+    console.error('Error getting user stories:', error)
+    return []
+  }
+}
+
+export async function getArchivedStories() {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // First archive expired stories
+    await supabase
+      .from('stories')
+      .update({ is_archived: true })
+      .lt('expires_at', new Date().toISOString())
+      .eq('creator_id', user.id)
+      .eq('is_archived', false)
+
+    const { data: stories, error } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('creator_id', user.id)
+      .eq('is_archived', true)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return stories
+  } catch (error) {
+    console.error('Error getting archived stories:', error)
+    return []
+  }
+}
+
+export async function deleteStory(storyId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Get story to delete file
+    const { data: story } = await supabase
+      .from('stories')
+      .select('media_url')
+      .eq('id', storyId)
+      .eq('creator_id', user.id)
+      .single()
+
+    if (!story) throw new Error('Story not found or unauthorized')
+
+    const { error } = await supabase
+      .from('stories')
+      .delete()
+      .eq('id', storyId)
+      .eq('creator_id', user.id)
+
+    if (error) throw error
+
+    if (story.media_url) {
+      // url like https://.../storage/v1/object/public/posts/stories/123/file.jpg
+      const urlParts = story.media_url.split('/posts/')
+      if (urlParts.length > 1) {
+        const filePath = urlParts[1]
+        await supabase.storage.from('posts').remove([filePath])
+      }
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error deleting story:', error)
+    return false
+  }
+}
+
+export async function viewStory(storyId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('story_views')
+      .upsert({
+        story_id: storyId,
+        viewer_id: user.id,
+        viewed_at: new Date().toISOString()
+      }, { onConflict: 'story_id, viewer_id' })
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error viewing story:', error)
+    return false
+  }
+}
+
+export async function getStoryViewers(storyId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data: viewers, error } = await supabase
+      .from('story_views')
+      .select(`
+        *,
+        viewer:users(*)
+      `)
+      .eq('story_id', storyId)
+      .order('viewed_at', { ascending: false })
+
+    if (error) throw error
+    return viewers
+  } catch (error) {
+    console.error('Error getting story viewers:', error)
+    return []
+  }
+}
+
+export async function createHighlight(title: string, storyIds: string[], coverUrl?: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    let finalCoverUrl = coverUrl
+    if (!finalCoverUrl && storyIds.length > 0) {
+      const { data: story } = await supabase
+        .from('stories')
+        .select('media_url')
+        .eq('id', storyIds[0])
+        .single()
+      if (story) finalCoverUrl = story.media_url
+    }
+
+    const { data: highlight, error: highlightError } = await supabase
+      .from('story_highlights')
+      .insert({
+        user_id: user.id,
+        title,
+        cover_url: finalCoverUrl
+      })
+      .select()
+      .single()
+
+    if (highlightError) throw highlightError
+
+    if (storyIds.length > 0) {
+      const highlightItems = storyIds.map((storyId, index) => ({
+        highlight_id: highlight.id,
+        story_id: storyId,
+        display_order: index
+      }))
+
+      const { error: itemsError } = await supabase
+        .from('story_highlight_items')
+        .insert(highlightItems)
+
+      if (itemsError) throw itemsError
+    }
+
+    return highlight
+  } catch (error) {
+    console.error('Error creating highlight:', error)
+    throw error
+  }
+}
+
+export async function updateHighlight(highlightId: string, updates: { title?: string; coverUrl?: string; storyIds?: string[] }) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const highlightUpdates: any = {}
+    if (updates.title) highlightUpdates.title = updates.title
+    if (updates.coverUrl) highlightUpdates.cover_url = updates.coverUrl
+
+    if (Object.keys(highlightUpdates).length > 0) {
+      const { error } = await supabase
+        .from('story_highlights')
+        .update(highlightUpdates)
+        .eq('id', highlightId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+    }
+
+    if (updates.storyIds) {
+      // delete existing
+      await supabase
+        .from('story_highlight_items')
+        .delete()
+        .eq('highlight_id', highlightId)
+
+      // insert new
+      if (updates.storyIds.length > 0) {
+        const highlightItems = updates.storyIds.map((storyId, index) => ({
+          highlight_id: highlightId,
+          story_id: storyId,
+          display_order: index
+        }))
+
+        const { error: itemsError } = await supabase
+          .from('story_highlight_items')
+          .insert(highlightItems)
+
+        if (itemsError) throw itemsError
+      }
+    }
+
+    const { data: updatedHighlight, error: fetchError } = await supabase
+      .from('story_highlights')
+      .select('*')
+      .eq('id', highlightId)
+      .single()
+
+    if (fetchError) throw fetchError
+    return updatedHighlight
+  } catch (error) {
+    console.error('Error updating highlight:', error)
+    throw error
+  }
+}
+
+export async function deleteHighlight(highlightId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('story_highlights')
+      .delete()
+      .eq('id', highlightId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error deleting highlight:', error)
+    return false
+  }
+}
+
+export async function getUserHighlights(userId: string) {
+  try {
+    const { data: highlights, error } = await supabase
+      .from('story_highlights')
+      .select('*')
+      .eq('user_id', userId)
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return highlights
+  } catch (error) {
+    console.error('Error getting user highlights:', error)
+    return []
+  }
+}
+
+export async function getHighlightStories(highlightId: string) {
+  try {
+    const { data: items, error } = await supabase
+      .from('story_highlight_items')
+      .select(`
+        *,
+        story:stories(*, creator:users(*))
+      `)
+      .eq('highlight_id', highlightId)
+      .order('display_order', { ascending: true })
+
+    if (error) throw error
+    return items.map((item: any) => item.story).filter(Boolean)
+  } catch (error) {
+    console.error('Error getting highlight stories:', error)
+    return []
+  }
+}
 

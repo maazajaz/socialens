@@ -20,6 +20,7 @@ import GridPostList from "@/components/shared/GridPostList";
 import LinkifiedText from "@/components/shared/LinkifiedText";
 import LikedPosts from "./LikedPosts";
 import PrivacySettings from "@/components/shared/PrivacySettings";
+import StoryHighlights from "@/components/shared/StoryHighlights";
 
 interface StabBlockProps {
   value: string | number;
@@ -191,6 +192,11 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
           />
         </div>
       )}
+
+      {/* Story Highlights */}
+      <div className="w-full max-w-5xl">
+        <StoryHighlights userId={id || ""} isOwnProfile={isOwnProfile} />
+      </div>
       
       {/* POSTS TABS - GAP REDUCED */}
       <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2"> {/* CHANGED: mt-3 pt-2 to mt-2 pt-2 */}

@@ -73,10 +73,10 @@ const SigninForm = () => {
       }
 
       if (error?.name === 'AccountDeactivatedError') {
-        setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.");
+        setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.de for assistance.");
         toast({
           title: "Account Deactivated",
-          description: "Your account has been deactivated. Please contact support at support@socialens.in if you believe this was done in error.",
+          description: "Your account has been deactivated. Please contact support at support@socialens.de if you believe this was done in error.",
           variant: "destructive",
         });
         return;
@@ -92,7 +92,7 @@ const SigninForm = () => {
                    error.message.includes('Invalid email or password')) {
           setSignInError("❌ Invalid credentials. Please check your email and password and try again.");
         } else if (error.message.includes('account has been deactivated')) {
-          setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.in for assistance.");
+          setSignInError("🚫 Your account has been deactivated. If you believe this was done in error, please contact support at support@socialens.de for assistance.");
         } else {
           setSignInError(`❌ Login failed: ${error.message}`);
         }
