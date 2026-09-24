@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useGetReelsFeed } from "@/lib/react-query/queriesAndMutations";
 import Loader from "@/components/shared/Loader";
 import ReelViewer from "@/components/shared/ReelViewer";
@@ -8,7 +7,6 @@ import Link from "next/link";
 
 const Reels = () => {
   const { data: reels, isPending: isLoading, isError } = useGetReelsFeed();
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   if (isError) {
     return (
