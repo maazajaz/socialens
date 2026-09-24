@@ -18,9 +18,10 @@ type ReelViewerProps = {
   reels: any[];
   initialIndex?: number;
   onClose?: () => void;
+  isModal?: boolean;
 };
 
-const ReelViewer = ({ reels, initialIndex = 0, onClose }: ReelViewerProps) => {
+const ReelViewer = ({ reels, initialIndex = 0, onClose, isModal = true }: ReelViewerProps) => {
   const { user } = useUserContext();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isMuted, setIsMuted] = useState(false);
@@ -253,7 +254,7 @@ const ReelViewer = ({ reels, initialIndex = 0, onClose }: ReelViewerProps) => {
   return (
     <div
       ref={containerRef}
-      className="reel-viewer-container"
+      className={isModal ? "reel-viewer-modal" : "reel-viewer-inline"}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -267,7 +268,7 @@ const ReelViewer = ({ reels, initialIndex = 0, onClose }: ReelViewerProps) => {
       </div>
 
       {/* Close button */}
-      {onClose && (
+      {isModal && onClose && (
         <button onClick={onClose} className="reel-close-btn">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path

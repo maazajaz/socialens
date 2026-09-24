@@ -3400,14 +3400,12 @@ export async function viewReel(reelId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Upsert to avoid duplicate view errors
+    // Insert to avoid RLS errors on update
     const { error } = await supabase
       .from('reel_views')
-      .upsert({
+      .insert({
         reel_id: reelId,
         viewer_id: user.id
-      }, {
-        onConflict: 'reel_id,viewer_id'
       })
 
     if (error && !error.message.includes('duplicate')) {

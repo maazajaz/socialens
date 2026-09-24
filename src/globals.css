@@ -431,9 +431,15 @@
   @apply absolute bottom-3 right-3 flex items-center gap-1.5;
 }
 
-/* Full-screen Reel Viewer */
-.reel-viewer-container {
+/* Full-screen Reel Viewer (Modal) */
+.reel-viewer-modal {
   @apply fixed inset-0 z-50 bg-black flex items-center justify-center;
+  touch-action: none;
+}
+
+/* Inline Reel Viewer (Page) */
+.reel-viewer-inline {
+  @apply relative w-full h-full bg-black flex flex-1 items-center justify-center overflow-hidden;
   touch-action: none;
 }
 
