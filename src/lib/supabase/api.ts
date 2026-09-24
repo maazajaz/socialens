@@ -1293,6 +1293,9 @@ export async function getFollowingFeed(page: number = 1, limit: number = 20) {
     const filteredData = data?.filter(post => {
       const creator = post.creator;
       
+      // Skip posts with no creator (deleted user or join failure)
+      if (!creator) return false;
+      
       // Always show own posts
       if (creator.id === user.id) return true;
       
@@ -1609,11 +1612,9 @@ export async function isPostSaved(postId: string, userId: string) {
       .select('id')
       .eq('post_id', postId)
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
-      throw error
-    }
+    if (error) throw error
 
     return !!data // Returns true if found, false if not
   } catch (error) {
@@ -1895,9 +1896,9 @@ export async function isFollowing(followingId: string) {
       .select('id')
       .eq('follower_id', user.id)
       .eq('following_id', followingId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
+    if (error) throw error
     return !!data
   } catch (error) {
     console.error('Error checking if following:', error)
@@ -2155,9 +2156,9 @@ export async function getCommentLikeStatus(commentId: string, userId: string): P
       .select('id')
       .eq('comment_id', commentId)
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
+    if (error) throw error
     return !!data
   } catch (error) {
     console.error('Error checking comment like status:', error)
