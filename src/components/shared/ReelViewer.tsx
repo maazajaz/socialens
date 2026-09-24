@@ -24,7 +24,7 @@ type ReelViewerProps = {
 const ReelViewer = ({ reels, initialIndex = 0, onClose, isModal = true }: ReelViewerProps) => {
   const { user } = useUserContext();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Must be true for browser autoplay to work
   const [isPlaying, setIsPlaying] = useState(true);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
