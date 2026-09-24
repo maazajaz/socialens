@@ -8,6 +8,7 @@ import Loader from "@/components/shared/Loader";
 import PostCard from "@/components/shared/PostCard";
 import UserCard from "@/components/shared/UserCard";
 import StoriesTray from "@/components/shared/StoriesTray";
+import SuggestedReels from "@/components/shared/SuggestedReels";
 
 const Home = () => {
   // const { toast } = useToast();
@@ -45,6 +46,7 @@ const Home = () => {
       <div className="home-container">
         <div className="home-posts">
           <StoriesTray />
+          <SuggestedReels />
           <h2 className="h3-bold md:h2-bold text-left w-full">Following Feed</h2>
           {isPostLoading && !posts ? (
             <Loader />

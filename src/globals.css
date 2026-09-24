@@ -376,4 +376,228 @@
 
 .highlight-tray::-webkit-scrollbar {
   display: none;
-}
+}
+
+/* ============================== */
+/* REELS FEATURE STYLES */
+/* ============================== */
+
+/* Reels browsing page */
+.reels-container {
+  @apply flex flex-col flex-1 items-center overflow-y-auto py-10 px-5 md:p-14 custom-scrollbar pb-24;
+}
+
+.reels-inner {
+  @apply max-w-5xl flex flex-col items-center w-full gap-6;
+}
+
+.reels-grid {
+  @apply w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4;
+}
+
+/* Reel thumbnail card */
+.reel-thumbnail-card {
+  @apply relative rounded-xl overflow-hidden cursor-pointer;
+  aspect-ratio: 9/16;
+}
+
+.reel-thumbnail-wrapper {
+  @apply relative w-full h-full bg-dark-3;
+}
+
+.reel-thumbnail-video {
+  @apply w-full h-full object-cover;
+}
+
+.reel-thumbnail-overlay {
+  @apply absolute inset-0;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.7));
+}
+
+.reel-thumbnail-play {
+  @apply absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.reel-thumbnail-views {
+  @apply absolute bottom-10 left-3 flex items-center gap-1 text-white text-xs font-semibold;
+}
+
+.reel-thumbnail-likes {
+  @apply absolute bottom-3 left-3 flex items-center gap-1 text-white text-xs font-semibold;
+}
+
+.reel-thumbnail-info {
+  @apply absolute bottom-3 right-3 flex items-center gap-1.5;
+}
+
+/* Full-screen Reel Viewer */
+.reel-viewer-container {
+  @apply fixed inset-0 z-50 bg-black flex items-center justify-center;
+  touch-action: none;
+}
+
+.reel-video-wrapper {
+  @apply relative w-full h-full flex items-center justify-center;
+  max-width: 480px;
+}
+
+.reel-video {
+  @apply w-full h-full object-contain;
+}
+
+/* Progress bar at top */
+.reel-progress-bar {
+  @apply absolute top-0 left-0 right-0 h-[3px] bg-white/20 z-30;
+}
+
+.reel-progress-fill {
+  @apply h-full bg-white rounded-full transition-none;
+}
+
+/* Close button */
+.reel-close-btn {
+  @apply absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 transition-colors;
+}
+
+/* Action buttons - right side */
+.reel-actions {
+  @apply absolute right-3 bottom-24 md:right-4 md:bottom-20 flex flex-col items-center gap-5 z-20;
+}
+
+.reel-action-btn {
+  @apply flex flex-col items-center gap-1 text-white transition-transform active:scale-90;
+}
+
+.reel-action-count {
+  @apply text-xs font-semibold;
+}
+
+/* Bottom info overlay */
+.reel-info {
+  @apply absolute bottom-4 left-4 right-20 z-20;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Navigation arrows */
+.reel-nav-up {
+  @apply absolute top-4 left-1/2 -translate-x-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors opacity-60 hover:opacity-100;
+}
+
+.reel-nav-down {
+  @apply absolute bottom-4 left-1/2 -translate-x-1/2 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors animate-bounce opacity-60 hover:opacity-100;
+}
+
+/* Pause indicator */
+.reel-pause-indicator {
+  @apply absolute inset-0 flex items-center justify-center;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Double tap heart */
+.reel-double-tap-heart {
+  @apply absolute inset-0 flex items-center justify-center pointer-events-none z-30;
+  animation: heartPop 0.8s ease forwards;
+}
+
+@keyframes heartPop {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* View count */
+.reel-view-count {
+  @apply absolute top-4 left-4 z-20 flex items-center gap-1.5 text-white/70 text-sm;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Comments panel */
+.reel-comments-panel {
+  @apply absolute bottom-0 right-0 z-40 bg-dark-2 border-l border-dark-4 flex flex-col;
+  width: 360px;
+  height: 100%;
+  animation: slideIn 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .reel-comments-panel {
+    width: 100%;
+    height: 60%;
+    border-left: none;
+    border-top: 1px solid rgb(30, 30, 36);
+    border-radius: 16px 16px 0 0;
+    animation: slideUp 0.3s ease;
+  }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.reel-comments-list {
+  @apply flex-1 overflow-y-auto custom-scrollbar;
+}
+
+.reel-comment-input {
+  @apply flex items-center gap-3 p-4 border-t border-dark-4;
+}
+
+/* Suggested Reels in Home Feed */
+.home-reels-suggestion {
+  @apply w-full max-w-screen-sm bg-dark-2 rounded-3xl border border-dark-4 p-5;
+}
+
+.home-reels-scroll {
+  @apply flex gap-3 overflow-x-auto pb-2;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.home-reels-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.home-reel-mini {
+  @apply relative rounded-xl overflow-hidden cursor-pointer flex-shrink-0;
+  width: 120px;
+  aspect-ratio: 9/16;
+}
+
+.home-reel-mini video {
+  @apply w-full h-full object-cover;
+}
+
+.home-reel-mini-overlay {
+  @apply absolute inset-0;
+  background: linear-gradient(transparent 60%, rgba(0, 0, 0, 0.8));
+}
+
+.home-reel-mini-info {
+  @apply absolute bottom-2 left-2 right-2 flex items-center gap-1;
+}
+

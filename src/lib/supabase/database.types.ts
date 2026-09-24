@@ -287,6 +287,133 @@ export interface Database {
           display_order?: number
         }
       }
+      reels: {
+        Row: {
+          id: string
+          creator_id: string
+          video_url: string
+          thumbnail_url: string | null
+          caption: string | null
+          audio_name: string | null
+          tags: string[] | null
+          view_count: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          video_url: string
+          thumbnail_url?: string | null
+          caption?: string | null
+          audio_name?: string | null
+          tags?: string[] | null
+          view_count?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          video_url?: string
+          thumbnail_url?: string | null
+          caption?: string | null
+          audio_name?: string | null
+          tags?: string[] | null
+          view_count?: number
+          created_at?: string
+        }
+      }
+      reel_likes: {
+        Row: {
+          id: string
+          reel_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reel_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          reel_id?: string
+          user_id?: string
+          created_at?: string
+        }
+      }
+      reel_comments: {
+        Row: {
+          id: string
+          reel_id: string
+          user_id: string
+          content: string
+          parent_id: string | null
+          created_at: string
+          updated_at: string
+          is_edited: boolean
+        }
+        Insert: {
+          id?: string
+          reel_id: string
+          user_id: string
+          content: string
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+          is_edited?: boolean
+        }
+        Update: {
+          id?: string
+          reel_id?: string
+          user_id?: string
+          content?: string
+          parent_id?: string | null
+          created_at?: string
+          updated_at?: string
+          is_edited?: boolean
+        }
+      }
+      reel_saves: {
+        Row: {
+          id: string
+          reel_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          reel_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          reel_id?: string
+          user_id?: string
+          created_at?: string
+        }
+      }
+      reel_views: {
+        Row: {
+          id: string
+          reel_id: string
+          viewer_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          reel_id: string
+          viewer_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          reel_id?: string
+          viewer_id?: string
+          viewed_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

@@ -74,8 +74,21 @@ import {
   deleteHighlight,
   getUserHighlights,
   getHighlightStories,
+  // Reels functions
+  createReel,
+  getReelsFeed,
+  getReelById,
+  getUserReels,
+  likeReel,
+  unlikeReel,
+  saveReel,
+  unsaveReel,
+  viewReel,
+  deleteReel,
+  getReelComments,
+  createReelComment,
 } from "../supabase/api";
-import { INewPost, INewUser, IUpdatePost, IUpdateUser } from "@/types";
+import { INewPost, INewUser, IUpdatePost, IUpdateUser, INewReel } from "@/types";
 import { QUERY_KEYS } from "./queryKeys";
 import { notificationService } from "../utils/notificationService";
 export const useCreateUserAccount = () => {
@@ -1160,6 +1173,154 @@ export const useDeleteHighlight = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: [QUERY_KEYS.GET_USER_HIGHLIGHTS],
+      });
+    },
+  });
+};
+
+// ============================================================
+// REELS HOOKS
+// ============================================================
+
+export const useCreateReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reel: INewReel) => createReel(reel),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_REELS],
+      });
+    },
+  });
+};
+
+export const useGetReelsFeed = (page: number = 1) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_REELS_FEED, page],
+    queryFn: () => getReelsFeed(page),
+  });
+};
+
+export const useGetReelById = (reelId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_REEL_BY_ID, reelId],
+    queryFn: () => getReelById(reelId),
+    enabled: !!reelId,
+  });
+};
+
+export const useGetUserReels = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_USER_REELS, userId],
+    queryFn: () => getUserReels(userId),
+    enabled: !!userId,
+  });
+};
+
+export const useLikeReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reelId: string) => likeReel(reelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REEL_BY_ID],
+      });
+    },
+  });
+};
+
+export const useUnlikeReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reelId: string) => unlikeReel(reelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REEL_BY_ID],
+      });
+    },
+  });
+};
+
+export const useSaveReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reelId: string) => saveReel(reelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+    },
+  });
+};
+
+export const useUnsaveReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reelId: string) => unsaveReel(reelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+    },
+  });
+};
+
+export const useViewReel = () => {
+  return useMutation({
+    mutationFn: (reelId: string) => viewReel(reelId),
+  });
+};
+
+export const useDeleteReel = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (reelId: string) => deleteReel(reelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_USER_REELS],
+      });
+    },
+  });
+};
+
+export const useGetReelComments = (reelId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.GET_REEL_COMMENTS, reelId],
+    queryFn: () => getReelComments(reelId),
+    enabled: !!reelId,
+  });
+};
+
+export const useCreateReelComment = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ reelId, content, parentId }: { reelId: string; content: string; parentId?: string }) =>
+      createReelComment(reelId, content, parentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REEL_COMMENTS],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [QUERY_KEYS.GET_REELS_FEED],
       });
     },
   });

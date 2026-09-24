@@ -129,3 +129,35 @@ export type IStoryHighlight = {
   display_order: number;
   stories?: IStory[];
 };
+
+export type IReel = {
+  id: string;
+  creator_id: string;
+  video_url: string;
+  thumbnail_url: string | null;
+  caption: string | null;
+  audio_name: string | null;
+  tags: string[] | null;
+  view_count: number;
+  created_at: string;
+  creator: {
+    id: string;
+    name: string;
+    username: string;
+    image_url: string | null;
+  };
+  likes: Array<{ user_id: string }>;
+  _count?: {
+    likes: number;
+    comments: number;
+  };
+  isLiked?: boolean;
+  isSaved?: boolean;
+};
+
+export type INewReel = {
+  file: File[];
+  caption?: string;
+  tags?: string;
+  audioName?: string;
+};

@@ -3038,3 +3038,471 @@ export async function getHighlightStories(highlightId: string) {
   }
 }
 
+// ============================================================
+// REELS
+// ============================================================
+
+export async function createReel(reel: {
+  file: File[]
+  caption?: string
+  tags?: string
+  audioName?: string
+}) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    let videoUrl = ''
+    const thumbnailUrl = null
+
+    // Upload video file
+    if (reel.file && reel.file.length > 0) {
+      const videoFile = reel.file[0]
+      
+      // Check file size (limit to 50MB for reels)
+      if (videoFile.size > 50 * 1024 * 1024) {
+        throw new Error('Video size too large. Please choose a file smaller than 50MB.')
+      }
+
+      const fileExt = videoFile.name.split('.').pop()
+      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('reels')
+        .upload(fileName, videoFile, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (uploadError) {
+        console.error('Reel upload error:', uploadError)
+        throw new Error(`Upload failed: ${uploadError.message}`)
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('reels')
+        .getPublicUrl(fileName)
+
+      videoUrl = publicUrl
+    } else {
+      throw new Error('No video file provided')
+    }
+
+    // Convert tags string to array
+    let tagsArray: string[] | null = null
+    if (reel.tags) {
+      tagsArray = reel.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
+    }
+
+    const { data, error } = await supabase
+      .from('reels')
+      .insert({
+        creator_id: user.id,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        caption: reel.caption || null,
+        audio_name: reel.audioName || null,
+        tags: tagsArray,
+      })
+      .select(`
+        *,
+        creator:users(id, name, username, image_url),
+        likes:reel_likes(user_id)
+      `)
+      .single()
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error creating reel:', error)
+    throw error
+  }
+}
+
+export async function getReelsFeed(page: number = 1, limit: number = 10) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const offset = (page - 1) * limit
+
+    // Get followed user IDs for mixing content
+    const { data: followsData } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+
+    const followedUserIds = followsData?.map(follow => follow.following_id) || []
+
+    // Get reels from everyone (like Instagram's algorithm - mix of followed + discover)
+    const { data, error } = await supabase
+      .from('reels')
+      .select(`
+        *,
+        creator:users(id, name, username, image_url),
+        likes:reel_likes(user_id)
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    // Enrich with like/save status and counts
+    const enrichedReels = await Promise.all(
+      (data || []).map(async (reel: any) => {
+        const [
+          { count: likesCount },
+          { count: commentsCount },
+          likeStatus,
+          saveStatus
+        ] = await Promise.all([
+          supabase
+            .from('reel_likes')
+            .select('*', { count: 'exact', head: true })
+            .eq('reel_id', reel.id),
+          supabase
+            .from('reel_comments')
+            .select('*', { count: 'exact', head: true })
+            .eq('reel_id', reel.id),
+          supabase
+            .from('reel_likes')
+            .select('id')
+            .eq('reel_id', reel.id)
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('reel_saves')
+            .select('id')
+            .eq('reel_id', reel.id)
+            .eq('user_id', user.id)
+            .maybeSingle()
+        ])
+
+        return {
+          ...reel,
+          _count: {
+            likes: likesCount || 0,
+            comments: commentsCount || 0
+          },
+          isLiked: !!likeStatus.data,
+          isSaved: !!saveStatus.data,
+          isFollowing: followedUserIds.includes(reel.creator_id) || reel.creator_id === user.id
+        }
+      })
+    )
+
+    // Sort: prioritize followed users' reels, then popular reels
+    enrichedReels.sort((a: any, b: any) => {
+      // Own reels and followed users' reels come first
+      const aFollowed = followedUserIds.includes(a.creator_id) || a.creator_id === user.id
+      const bFollowed = followedUserIds.includes(b.creator_id) || b.creator_id === user.id
+      
+      if (aFollowed && !bFollowed) return -1
+      if (!aFollowed && bFollowed) return 1
+      
+      // Then sort by recency
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+    return enrichedReels
+  } catch (error) {
+    console.error('Error getting reels feed:', error)
+    throw error
+  }
+}
+
+export async function getReelById(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const { data, error } = await supabase
+      .from('reels')
+      .select(`
+        *,
+        creator:users(id, name, username, image_url),
+        likes:reel_likes(user_id)
+      `)
+      .eq('id', reelId)
+      .single()
+
+    if (error) throw error
+
+    // Add counts and status
+    const [
+      { count: likesCount },
+      { count: commentsCount }
+    ] = await Promise.all([
+      supabase
+        .from('reel_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('reel_id', reelId),
+      supabase
+        .from('reel_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('reel_id', reelId)
+    ])
+
+    let isLiked = false
+    let isSaved = false
+
+    if (user) {
+      const [likeStatus, saveStatus] = await Promise.all([
+        supabase
+          .from('reel_likes')
+          .select('id')
+          .eq('reel_id', reelId)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('reel_saves')
+          .select('id')
+          .eq('reel_id', reelId)
+          .eq('user_id', user.id)
+          .maybeSingle()
+      ])
+      isLiked = !!likeStatus.data
+      isSaved = !!saveStatus.data
+    }
+
+    return {
+      ...data,
+      _count: {
+        likes: likesCount || 0,
+        comments: commentsCount || 0
+      },
+      isLiked,
+      isSaved
+    }
+  } catch (error) {
+    console.error('Error getting reel by id:', error)
+    throw error
+  }
+}
+
+export async function getUserReels(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('reels')
+      .select(`
+        *,
+        creator:users(id, name, username, image_url),
+        likes:reel_likes(user_id)
+      `)
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    // Add counts
+    const reelsWithCounts = await Promise.all(
+      (data || []).map(async (reel: any) => {
+        const { count: likesCount } = await supabase
+          .from('reel_likes')
+          .select('*', { count: 'exact', head: true })
+          .eq('reel_id', reel.id)
+
+        return {
+          ...reel,
+          _count: {
+            likes: likesCount || 0
+          }
+        }
+      })
+    )
+
+    return reelsWithCounts
+  } catch (error) {
+    console.error('Error getting user reels:', error)
+    return []
+  }
+}
+
+export async function likeReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('reel_likes')
+      .insert({
+        reel_id: reelId,
+        user_id: user.id
+      })
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error liking reel:', error)
+    return false
+  }
+}
+
+export async function unlikeReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('reel_likes')
+      .delete()
+      .eq('reel_id', reelId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error unliking reel:', error)
+    return false
+  }
+}
+
+export async function saveReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('reel_saves')
+      .insert({
+        reel_id: reelId,
+        user_id: user.id
+      })
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error saving reel:', error)
+    return false
+  }
+}
+
+export async function unsaveReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { error } = await supabase
+      .from('reel_saves')
+      .delete()
+      .eq('reel_id', reelId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error unsaving reel:', error)
+    return false
+  }
+}
+
+export async function viewReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Upsert to avoid duplicate view errors
+    const { error } = await supabase
+      .from('reel_views')
+      .upsert({
+        reel_id: reelId,
+        viewer_id: user.id
+      }, {
+        onConflict: 'reel_id,viewer_id'
+      })
+
+    if (error && !error.message.includes('duplicate')) {
+      console.error('Error recording reel view:', error)
+    }
+  } catch (error) {
+    console.error('Error viewing reel:', error)
+  }
+}
+
+export async function deleteReel(reelId: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    // Get the reel to find the video URL for cleanup
+    const { data: reel } = await supabase
+      .from('reels')
+      .select('video_url, creator_id')
+      .eq('id', reelId)
+      .single()
+
+    if (reel && reel.creator_id !== user.id) {
+      throw new Error('Not authorized to delete this reel')
+    }
+
+    // Delete from storage if possible
+    if (reel?.video_url) {
+      try {
+        const url = new URL(reel.video_url)
+        const pathParts = url.pathname.split('/storage/v1/object/public/reels/')
+        if (pathParts[1]) {
+          await supabase.storage.from('reels').remove([pathParts[1]])
+        }
+      } catch (e) {
+        console.log('Could not clean up reel file from storage')
+      }
+    }
+
+    const { error } = await supabase
+      .from('reels')
+      .delete()
+      .eq('id', reelId)
+
+    if (error) throw error
+    return true
+  } catch (error) {
+    console.error('Error deleting reel:', error)
+    throw error
+  }
+}
+
+export async function getReelComments(reelId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('reel_comments')
+      .select(`
+        *,
+        user:users(id, name, username, image_url)
+      `)
+      .eq('reel_id', reelId)
+      .is('parent_id', null)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error getting reel comments:', error)
+    return []
+  }
+}
+
+export async function createReelComment(reelId: string, content: string, parentId?: string) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
+    const { data, error } = await supabase
+      .from('reel_comments')
+      .insert({
+        reel_id: reelId,
+        user_id: user.id,
+        content,
+        parent_id: parentId || null
+      })
+      .select(`
+        *,
+        user:users(id, name, username, image_url)
+      `)
+      .single()
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error creating reel comment:', error)
+    throw error
+  }
+}

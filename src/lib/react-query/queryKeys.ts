@@ -49,4 +49,10 @@ export enum QUERY_KEYS {
   GET_STORY_VIEWERS = "getStoryViewers",
   GET_USER_HIGHLIGHTS = "getUserHighlights",
   GET_HIGHLIGHT_STORIES = "getHighlightStories",
+  
+  // REEL KEYS
+  GET_REELS_FEED = "getReelsFeed",
+  GET_REEL_BY_ID = "getReelById",
+  GET_USER_REELS = "getUserReels",
+  GET_REEL_COMMENTS = "getReelComments",
 }  
