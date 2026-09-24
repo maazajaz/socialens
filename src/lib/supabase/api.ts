@@ -3400,12 +3400,16 @@ export async function viewReel(reelId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Insert to avoid RLS errors on update
+    // Use upsert with ignoreDuplicates to do an INSERT ON CONFLICT DO NOTHING
+    // This avoids both RLS update errors and 409 Conflict network errors
     const { error } = await supabase
       .from('reel_views')
-      .insert({
+      .upsert({
         reel_id: reelId,
         viewer_id: user.id
+      }, {
+        onConflict: 'reel_id,viewer_id',
+        ignoreDuplicates: true
       })
 
     if (error && !error.message.includes('duplicate')) {
