@@ -30,6 +30,11 @@ export const sidebarLinks = [
       label: "Create Post",
     },
     {
+      imgURL: "/assets/icons/reels.svg",
+      route: "/create-reel",
+      label: "Create Reel",
+    },
+    {
       imgURL: "/assets/icons/filter.svg",
       route: "/admin",
       label: "Admin",
@@ -83,6 +88,11 @@ export const sidebarLinks = [
       imgURL: "/assets/icons/gallery-add.svg",
       route: "/create-post",
       label: "Create",
+    },
+    {
+      imgURL: "/assets/icons/reels.svg",
+      route: "/create-reel",
+      label: "Reel",
     },
     {
       imgURL: "/assets/icons/bookmark.svg",

@@ -11,6 +11,7 @@ import {
   useViewReel,
   useGetReelComments,
   useCreateReelComment,
+  useDeleteReel,
 } from "@/lib/react-query/queriesAndMutations";
 import { multiFormatDateString } from "@/lib/utils";
 
@@ -44,8 +45,17 @@ const ReelViewer = ({ reels, initialIndex = 0, onClose, isModal = true }: ReelVi
   const { mutate: saveReelMutation } = useSaveReel();
   const { mutate: unsaveReelMutation } = useUnsaveReel();
   const { mutate: viewReelMutation } = useViewReel();
+  const { mutate: deleteReelMutation } = useDeleteReel();
   const { data: comments } = useGetReelComments(currentReel?.id || "");
   const { mutate: createComment, isPending: isCommenting } = useCreateReelComment();
+
+  const handleDeleteReel = () => {
+    if (window.confirm("Are you sure you want to delete this reel?")) {
+      deleteReelMutation(currentReel.id);
+      if (onClose) onClose();
+      else window.location.href = "/reels"; // Fallback redirect
+    }
+  };
 
   // Track view when reel becomes active
   useEffect(() => {
@@ -368,6 +378,18 @@ const ReelViewer = ({ reels, initialIndex = 0, onClose, isModal = true }: ReelVi
             <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
           </svg>
         </button>
+
+        {/* Delete (Owner only) */}
+        {user?.id === currentReel.creator_id && (
+          <button className="reel-action-btn" onClick={handleDeleteReel}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff3040" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        )}
 
         {/* Mute/Unmute */}
         <button

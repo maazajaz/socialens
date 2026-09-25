@@ -11,8 +11,10 @@ import {
   useGetFollowingCount,
   useIsFollowing,
   useFollowUser,
-  useUnfollowUser
+  useUnfollowUser,
+  useGetUserReels
 } from "@/lib/react-query/queriesAndMutations";
+import ReelViewer from "@/components/shared/ReelViewer";
 import Loader from "@/components/shared/Loader";
 import GridPostList from "@/components/shared/GridPostList";
 import LinkifiedText from "@/components/shared/LinkifiedText";
@@ -36,9 +38,52 @@ type ProfileWrapperProps = {
   params: { id: string };
 };
 
+const ProfileReels = ({ userId }: { userId: string }) => {
+  const { data: reels, isPending } = useGetUserReels(userId);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  if (isPending) return <Loader />;
+  if (!reels || reels.length === 0) return <p className="text-light-4 text-center w-full mt-10">No reels found</p>;
+
+  if (selectedIndex !== null) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-black">
+        <ReelViewer reels={reels} initialIndex={selectedIndex} onClose={() => setSelectedIndex(null)} isModal={true} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+      {reels.map((reel: any, index: number) => (
+        <div key={reel.id} className="relative aspect-[9/16] cursor-pointer group rounded-lg overflow-hidden" onClick={() => setSelectedIndex(index)}>
+          <video src={reel.video_url} className="w-full h-full object-cover" preload="metadata" />
+          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex-center">
+            <div className="flex gap-4">
+              <div className="flex-center gap-1 text-white">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                <span className="small-semibold">{reel._count?.likes || 0}</span>
+              </div>
+            </div>
+          </div>
+          {/* View icon */}
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 3l14 9-14 9V3z" />
+            </svg>
+            <span className="text-xs font-semibold">{reel._count?.views || 0}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
   const { user } = useUserContext();
-  const [activeTab, setActiveTab] = useState<'posts' | 'liked'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'liked'>('posts');
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   
   const id = params?.id;
@@ -235,17 +280,28 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
       </div>
       
       <div className="flex border-t border-dark-4 w-full max-w-5xl mt-2 pt-2">
-        {currentUser.id === user?.id && (
-          <div className="flex max-w-5xl w-full">
-            <button
-              onClick={() => setActiveTab('posts')}
-              className={`profile-tab rounded-l-lg ${
-                activeTab === 'posts' && "!bg-dark-3"
-              }`}
-            >
-              <img src={"/assets/icons/posts.svg"} alt="posts" width={20} height={20} />
-              Posts
-            </button>
+        <div className="flex max-w-5xl w-full">
+          <button
+            onClick={() => setActiveTab('posts')}
+            className={`profile-tab rounded-l-lg ${
+              activeTab === 'posts' && "!bg-dark-3"
+            }`}
+          >
+            <img src={"/assets/icons/posts.svg"} alt="posts" width={20} height={20} />
+            Posts
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('reels')}
+            className={`profile-tab ${
+              activeTab === 'reels' && "!bg-dark-3"
+            }`}
+          >
+            <img src={"/assets/icons/reels.svg"} alt="reels" width={20} height={20} />
+            Reels
+          </button>
+
+          {currentUser.id === user?.id && (
             <button
               onClick={() => setActiveTab('liked')}
               className={`profile-tab rounded-r-lg ${
@@ -253,15 +309,17 @@ const ProfileWrapper = ({ params }: ProfileWrapperProps) => {
               }`}
             >
               <img src={"/assets/icons/like.svg"} alt="like" width={20} height={20} />
-              Liked Posts
+              Liked
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="w-full max-w-5xl mt-4">
         {activeTab === 'posts' ? (
           <GridPostList posts={userPosts || []} showUser={false} showComments={false} />
+        ) : activeTab === 'reels' ? (
+          <ProfileReels userId={currentUser.id} />
         ) : (
           currentUser.id === user?.id && <LikedPosts />
         )}
