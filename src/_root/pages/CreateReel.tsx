@@ -71,7 +71,7 @@ const CreateReel = () => {
     onDrop,
     onDropRejected,
     accept: {
-      "video/*": [".mp4", ".mov", ".webm", ".avi"],
+      "video/*": [".mp4", ".webm"],
     },
     maxSize: 50 * 1024 * 1024,
     multiple: false,
